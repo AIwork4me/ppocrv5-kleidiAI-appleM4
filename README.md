@@ -71,7 +71,7 @@ A production-ready, single-file PP-OCRv5 inference pipeline using ONNX Runtime, 
 | rec | 1,599.89 | 1,319.33 | **1.21x** | Text recognition (CTC) |
 | det | 3,779.37 | 3,788.58 | 1.00x | Text detection (DB, large-kernel Conv) |
 
-KleidiAI accelerates GEMM-dominated models (classification, recognition) via Arm I8MM instructions. Detection is dominated by large-kernel convolutions (9x9), which are not GEMM-bound.
+KleidiAI accelerates GEMM-friendly models (classification, recognition) via Arm I8MM instructions. Detection is dominated by large-kernel convolutions (9x9), which are not GEMM-bound.
 
 </details>
 
