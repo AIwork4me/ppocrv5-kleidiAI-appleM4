@@ -71,7 +71,7 @@
 | rec | 1,599.89 | 1,319.33 | **1.21x** | 文本识别（CTC） |
 | det | 3,779.37 | 3,788.58 | 1.00x | 文本检测（DB，大核卷积主导） |
 
-KleidiAI 对 GEMM友好(GEMM-domoniated)的模型加速效果好；对于使用了大核卷积等非GEMM友好的模型，未见加速效果。
+KleidiAI 对 GEMM友好(GEMM-friendly)的模型加速效果好；对于使用了大核卷积等非GEMM友好的模型，未见加速效果。
 
 </details>
 
