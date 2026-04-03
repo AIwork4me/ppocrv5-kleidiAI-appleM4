@@ -45,14 +45,14 @@
 <tr>
 <td>ORT 1.21.1（无 KleidiAI）</td>
 <td>6,407 ms</td>
-<td>1.48x 快</td>
+<td>1.48x </td>
 <td>228/228 (100%)</td>
 <td>0.000019</td>
 </tr>
 <tr>
 <td><b>ORT 1.23.2（KleidiAI）</b></td>
 <td><b>5,486 ms</b></td>
-<td><b>1.72x 快</b></td>
+<td><b>1.72x </b></td>
 <td><b>228/228 (100%)</b></td>
 <td><b>0.000019</b></td>
 </tr>
