@@ -69,7 +69,7 @@ A production-ready, single-file PP-OCRv5 inference pipeline using ONNX Runtime, 
 > All benchmarks: 3 runs/image, 1 warmup. All backends produce 100% identical text, confidence diff < 0.00002.
 > Reproduce: `python benchmarks/benchmark_unified.py --backend ort --num-runs 3 --threads 2`
 
-**Why does ORT 1.24.3 at t=2 beat t=8?** KleidiAI in ORT 1.24.3 uses ARM **SME2** (Scalable Matrix Extension) for both GEMM and Conv operations. On Apple M4, SME is a **shared coprocessor** (2 devices per cluster), not per-core like NEON. At threads > 2, all threads contend for these 2 devices — the Conv-heavy det model regresses from 1,328 ms (ORT 1.21.1 NEON, t=8) to 4,312 ms. At threads=2, SME contention is minimal, and rec/textline_ori benefit massively from SME2 acceleration. See [SME Thread Scaling](#sme-thread-scaling-on-apple-silicon) for the full analysis.
+**Why does ORT 1.24.3 at t=2 beat t=8?** ORT 1.24.3's KleidiAI SME2 kernels dramatically accelerate rec (2.5x) and textline_ori (2.7x), but the det model regresses on high-resolution images due to a **large-kernel Conv regression** in ORT 1.24.x (kernel ≥ 7×7 on large spatial inputs). This regression is NOT caused by SME contention — it persists at t=2 and with `disable-kleidiai`. Factor decomposition: the 3.2x det gap vs ORT 1.21.1 = 1.94x (thread count: t=2 vs t=8) × 1.65x (Conv kernel regression). The pipeline still wins overall because rec's 2.5x speedup outweighs det's regression. See [SME Thread Scaling](#sme-thread-scaling-on-apple-silicon) for the full analysis.
 
 <details>
 <summary><b>Per-model inference breakdown (ms, averaged across 7 images)</b></summary>
@@ -118,16 +118,18 @@ See [docs/PIPELINE_ARCHITECTURE.md](docs/PIPELINE_ARCHITECTURE.md) for preproces
 
 > Investigated in [onnxruntime#27633](https://github.com/microsoft/onnxruntime/issues/27633) — resolved with ORT maintainer confirmation.
 
-ORT 1.24.x uses KleidiAI **SME2 kernels** (SGEMM, IGEMM Conv, Dynamic QGemm) that leverage ARM's Scalable Matrix Extension. On Apple M4, SME is a **shared coprocessor** (2 devices total), not per-core like NEON. This creates a thread scaling trade-off:
+ORT 1.24.x uses KleidiAI **SME2 kernels** (SGEMM, IGEMM Conv, Dynamic QGemm) that leverage ARM's Scalable Matrix Extension. On Apple M4, SME is a **shared coprocessor** (2 devices total), not per-core like NEON. Combined with a large-kernel Conv regression in ORT 1.24.x, this creates a per-model trade-off:
 
 | Threads | det (Conv-heavy) | rec (GEMM-heavy) | Pipeline Total |
 |:-------:|:-----------------:|:-----------------:|:--------------:|
-| 2 | 4,247 ms | **1,931 ms** | **6,332 ms** |
-| 8 | 4,312 ms | 2,579 ms | 7,096 ms |
-| 8 (no KleidiAI) | 4,266 ms | 2,677 ms | 7,155 ms |
+| ORT 1.21.1, 2 (NEON) | 2,571 ms | 6,523 ms | 9,346 ms |
 | ORT 1.21.1, 8 (NEON) | **1,328 ms** | 4,850 ms | 6,497 ms |
+| ORT 1.24.3, 2 (SME2) | 4,247 ms | **1,931 ms** | **6,332 ms** |
+| ORT 1.24.3, 8 (SME2) | 4,312 ms | 2,579 ms | 7,096 ms |
 
-**Recommended: `threads=2`** for ORT >= 1.24 on Apple M4. This minimizes SME contention while benefiting from SME2 acceleration on GEMM-heavy models.
+Det regression = 1.94x (fewer threads) × 1.65x (Conv kernel regression). Rec acceleration = 3.4x via SME2 SGEMM. Net: pipeline is 1.51x faster than Paddle at t=2.
+
+**Recommended: `threads=2`** for ORT >= 1.24 on Apple M4.
 
 ```python
 # Recommended for Apple M4 with ORT >= 1.24

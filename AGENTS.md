@@ -75,6 +75,8 @@ results/                             Reference benchmark JSONs (Apple M4).
   ort_1.24.3.json                    With KleidiAI SME2 (t=8).
   ort_1.24.3_t2.json                 With KleidiAI SME2 (t=2, recommended).
   ort_1.24.3_no_kleidiai.json        KleidiAI disabled (NEON fallback, t=8).
+  ort_1.21.1_t2.json                   Without KleidiAI (NEON only, t=2).
+  ort_1.24.3_t2_no_kleidiai.json       KleidiAI disabled (t=2).
 
 docs/
   ACCURACY_ALIGNMENT.md              6-round journey from 65.6% → 100%.
@@ -241,15 +243,19 @@ Output files in `results/` follow this structure:
 ### "Optimize inference speed"
 
 - Profile with `benchmark_unified.py`. Check `hotspots` in the output JSON.
-- **Thread scaling matters**: On Apple M4, KleidiAI's SME2 kernels (SGEMM, IGEMM Conv)
-  are 2.5-2.8x faster at t=1-2 but barely scale beyond 2 threads due to SME device
-  contention. NEON scales ~4x to 8 threads. See `docs/SME_THREAD_SCALING.md`.
+- **Thread scaling matters**: On Apple M4, KleidiAI's SME2 kernels (SGEMM) give
+  2.5-2.8x speedup for rec at t=1-2. However, the det model suffers from a
+  **large-kernel Conv kernel regression** in ORT 1.24.x (not SME contention).
+  The regression is resolution-dependent: small images (< 500K pixels) are faster,
+  large images (> 1M pixels) regress significantly vs ORT 1.21.1.
+  See `docs/SME_THREAD_SCALING.md`.
+- `mlas.disable_kleidiai` does NOT help det — the Conv kernel override is registered
+  at init time and is not reverted by the runtime flag.
 - Hotspot distribution depends on ORT version and thread count:
   - ORT 1.21.1, t=8 (NEON): `rec/inference` dominates (~75%), `det/inference` is ~20%
-  - ORT 1.24.3, t=8 (SME2): `det/inference` dominates (~61%) due to SME Conv contention
-  - ORT 1.24.3, t=2 (SME2): `det/inference` dominates (~67%), but pipeline total is lowest
-- `det/inference` is large-kernel Conv — KleidiAI's SME Conv is fast at t=1-2 but
-  contends at t>=3. Use `--threads 2` for optimal pipeline throughput.
+  - ORT 1.24.3, t=2 (SME2): `det/inference` dominates (~67%), but rec is 3.4x faster
+    than ORT 1.21.1, making the overall pipeline total the lowest
+- Use `--threads 2` for optimal pipeline throughput.
 - `rec/inference` benefits massively from KleidiAI SME2 SGEMM (2.5x at t=2).
 - After ANY optimization, re-run the 228-text verification protocol.
 
@@ -275,12 +281,14 @@ Output files in `results/` follow this structure:
 
 ## Known Issues
 
-- **KleidiAI SME Conv contention on Apple Silicon** (ORT >= 1.24): The SME2 Conv kernels
-  barely scale beyond 2 threads on Apple M4 (which has only 2 SME devices). At `threads=8`,
-  the det model regresses ~3.2x compared to ORT 1.21.1. Recommended: use ORT 1.24.3 with
-  `--threads 2` for best overall pipeline throughput, or use ORT 1.21.1 at `threads=8`
-  for best det-only latency. Note: `mlas.disable_kleidiai=1` does NOT fully revert
-  the Conv path in ORT 1.24.3 (det remains ~4,266 ms). See
+- **Large-kernel Conv regression in ORT 1.24.x on Apple Silicon**: The det model uses
+  large-kernel Conv ops that regress in ORT 1.24.x compared to 1.21.1. This is a
+  Conv kernel regression, not SME contention. The regression is resolution-dependent:
+  small images (< 500K pixels) are faster in 1.24.x, while large images (> 1M pixels)
+  regress significantly. `mlas.disable_kleidiai=1` does NOT help because the Conv
+  kernel override is registered at init time. Recommended: use ORT 1.24.3 with
+  `--threads 2` for best overall pipeline throughput (rec is 3.4x faster, offsetting
+  the det regression), or use ORT 1.21.1 at `threads=8` for best det-only latency. See
   [onnxruntime#27633](https://github.com/microsoft/onnxruntime/issues/27633) and
   `docs/SME_THREAD_SCALING.md`.
 

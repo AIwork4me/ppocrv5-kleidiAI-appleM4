@@ -1,9 +1,9 @@
 {
   "metadata": {
-    "engine": "ONNX Runtime 1.24.3",
-    "ort_version": "1.24.3",
+    "engine": "ONNX Runtime 1.21.1",
+    "ort_version": "1.21.1",
     "kleidi_ai": false,
-    "kleidi_ai_disabled_by_user": true,
+    "kleidi_ai_disabled_by_user": false,
     "provider": "CPUExecutionProvider",
     "model_format": "ONNX",
     "hw_info": {
@@ -15,57 +15,57 @@
       "memory_gb": "16"
     },
     "model_type": "PP-OCRv5 Server",
-    "cpu_threads": 8,
+    "cpu_threads": 2,
     "num_runs": 3,
     "num_warmup": 1,
     "total_images": 7,
-    "total_time_ms": 46233.65,
-    "avg_latency_ms": 6604.81,
-    "fps": 0.1514,
+    "total_time_ms": 65419.35,
+    "avg_latency_ms": 9345.62,
+    "fps": 0.107,
     "init_time_sec": 0.15
   },
   "aggregate_timing": {
     "doc_ori": {
-      "preprocess_ms": 1.01,
-      "inference_ms": 4.26,
-      "postprocess_ms": 0.89
+      "preprocess_ms": 0.45,
+      "inference_ms": 4.94,
+      "postprocess_ms": 0.49
     },
     "det": {
-      "preprocess_ms": 6.02,
-      "inference_ms": 3870.71,
-      "postprocess_ms": 4.79
+      "preprocess_ms": 3.14,
+      "inference_ms": 2571.48,
+      "postprocess_ms": 2.02
     },
     "textline_ori": {
-      "preprocess_ms": 3.6,
-      "inference_ms": 96.52,
-      "postprocess_ms": 0.25,
+      "preprocess_ms": 1.57,
+      "inference_ms": 187.45,
+      "postprocess_ms": 0.08,
       "count": 684.0
     },
     "rec": {
-      "preprocess_ms": 12.06,
-      "inference_ms": 2537.28,
-      "postprocess_ms": 59.56,
+      "preprocess_ms": 6.64,
+      "inference_ms": 6523.42,
+      "postprocess_ms": 39.57,
       "count": 684.0
     }
   },
   "hotspots": [
     {
-      "model": "det",
-      "phase": "inference",
-      "total_ms": 27094.94,
-      "percent": 58.7
-    },
-    {
       "model": "rec",
       "phase": "inference",
-      "total_ms": 17760.95,
-      "percent": 38.5
+      "total_ms": 45663.91,
+      "percent": 69.8
+    },
+    {
+      "model": "det",
+      "phase": "inference",
+      "total_ms": 18000.35,
+      "percent": 27.5
     },
     {
       "model": "textline_ori",
       "phase": "inference",
-      "total_ms": 675.63,
-      "percent": 1.5
+      "total_ms": 1312.18,
+      "percent": 2.0
     }
   ],
   "results": [
@@ -337,31 +337,31 @@
           "confidence": 0.949871
         }
       ],
-      "latency_ms": 1303.32,
-      "avg_latency_ms": 1303.32,
-      "min_latency_ms": 1292.06,
-      "max_latency_ms": 1322.13,
+      "latency_ms": 3191.54,
+      "avg_latency_ms": 3191.54,
+      "min_latency_ms": 3182.99,
+      "max_latency_ms": 3200.85,
       "timing": {
         "doc_ori": {
-          "preprocess_ms": 0.53,
-          "inference_ms": 3.23,
+          "preprocess_ms": 0.37,
+          "inference_ms": 4.91,
           "postprocess_ms": 0.01
         },
         "det": {
-          "preprocess_ms": 2.18,
-          "inference_ms": 376.06,
-          "postprocess_ms": 1.15
+          "preprocess_ms": 1.1,
+          "inference_ms": 889.09,
+          "postprocess_ms": 1.12
         },
         "textline_ori": {
-          "preprocess_ms": 1.62,
-          "inference_ms": 34.24,
-          "postprocess_ms": 0.09,
+          "preprocess_ms": 1.17,
+          "inference_ms": 68.14,
+          "postprocess_ms": 0.03,
           "count": 36.0
         },
         "rec": {
-          "preprocess_ms": 3.9,
-          "inference_ms": 857.3,
-          "postprocess_ms": 18.41,
+          "preprocess_ms": 2.79,
+          "inference_ms": 2206.41,
+          "postprocess_ms": 13.26,
           "count": 36.0
         }
       }
@@ -389,7 +389,7 @@
             ]
           ],
           "text": "初到黄州",
-          "confidence": 0.806316
+          "confidence": 0.806317
         },
         {
           "bounding_box": [
@@ -590,31 +590,31 @@
           "confidence": 0.983109
         }
       ],
-      "latency_ms": 776.67,
-      "avg_latency_ms": 776.67,
-      "min_latency_ms": 731.74,
-      "max_latency_ms": 849.09,
+      "latency_ms": 1681.14,
+      "avg_latency_ms": 1681.14,
+      "min_latency_ms": 1678.1,
+      "max_latency_ms": 1685.22,
       "timing": {
         "doc_ori": {
-          "preprocess_ms": 0.69,
-          "inference_ms": 3.28,
+          "preprocess_ms": 0.37,
+          "inference_ms": 4.88,
           "postprocess_ms": 0.01
         },
         "det": {
-          "preprocess_ms": 1.82,
-          "inference_ms": 431.56,
-          "postprocess_ms": 0.76
+          "preprocess_ms": 1.16,
+          "inference_ms": 935.8,
+          "postprocess_ms": 0.78
         },
         "textline_ori": {
-          "preprocess_ms": 0.76,
-          "inference_ms": 27.17,
-          "postprocess_ms": 0.06,
+          "preprocess_ms": 0.48,
+          "inference_ms": 56.77,
+          "postprocess_ms": 0.02,
           "count": 30.0
         },
         "rec": {
-          "preprocess_ms": 1.43,
-          "inference_ms": 300.76,
-          "postprocess_ms": 6.12,
+          "preprocess_ms": 0.78,
+          "inference_ms": 674.5,
+          "postprocess_ms": 4.12,
           "count": 30.0
         }
       }
@@ -865,31 +865,31 @@
           "confidence": 0.919147
         }
       ],
-      "latency_ms": 940.4,
-      "avg_latency_ms": 940.4,
-      "min_latency_ms": 903.98,
-      "max_latency_ms": 993.66,
+      "latency_ms": 2106.82,
+      "avg_latency_ms": 2106.82,
+      "min_latency_ms": 2105.6,
+      "max_latency_ms": 2108.74,
       "timing": {
         "doc_ori": {
-          "preprocess_ms": 0.42,
-          "inference_ms": 2.82,
+          "preprocess_ms": 0.37,
+          "inference_ms": 4.96,
           "postprocess_ms": 0.01
         },
         "det": {
-          "preprocess_ms": 3.0,
-          "inference_ms": 542.32,
-          "postprocess_ms": 0.93
+          "preprocess_ms": 1.54,
+          "inference_ms": 1235.49,
+          "postprocess_ms": 0.96
         },
         "textline_ori": {
-          "preprocess_ms": 0.82,
-          "inference_ms": 30.42,
-          "postprocess_ms": 0.07,
+          "preprocess_ms": 0.55,
+          "inference_ms": 62.12,
+          "postprocess_ms": 0.03,
           "count": 33.0
         },
         "rec": {
-          "preprocess_ms": 2.06,
-          "inference_ms": 346.66,
-          "postprocess_ms": 7.15,
+          "preprocess_ms": 1.02,
+          "inference_ms": 792.47,
+          "postprocess_ms": 4.87,
           "count": 33.0
         }
       }
@@ -1514,31 +1514,31 @@
           "confidence": 0.998575
         }
       ],
-      "latency_ms": 15703.49,
-      "avg_latency_ms": 15703.49,
-      "min_latency_ms": 14015.87,
-      "max_latency_ms": 18975.9,
+      "latency_ms": 12249.59,
+      "avg_latency_ms": 12249.59,
+      "min_latency_ms": 12234.85,
+      "max_latency_ms": 12265.45,
       "timing": {
         "doc_ori": {
-          "preprocess_ms": 1.93,
-          "inference_ms": 5.1,
+          "preprocess_ms": 0.55,
+          "inference_ms": 4.89,
           "postprocess_ms": 0.01
         },
         "det": {
-          "preprocess_ms": 16.18,
-          "inference_ms": 12709.69,
-          "postprocess_ms": 16.24
+          "preprocess_ms": 7.0,
+          "inference_ms": 5287.59,
+          "postprocess_ms": 2.91
         },
         "textline_ori": {
-          "preprocess_ms": 7.08,
-          "inference_ms": 79.71,
-          "postprocess_ms": 0.19,
+          "preprocess_ms": 1.29,
+          "inference_ms": 158.65,
+          "postprocess_ms": 0.07,
           "count": 84.0
         },
         "rec": {
-          "preprocess_ms": 18.88,
-          "inference_ms": 2776.62,
-          "postprocess_ms": 57.8,
+          "preprocess_ms": 6.97,
+          "inference_ms": 6730.52,
+          "postprocess_ms": 40.76,
           "count": 84.0
         }
       }
@@ -1588,7 +1588,7 @@
             ]
           ],
           "text": "口",
-          "confidence": 0.296835
+          "confidence": 0.296837
         },
         {
           "bounding_box": [
@@ -1786,7 +1786,7 @@
             ]
           ],
           "text": "现為台湾商業律師，商業顾問",
-          "confidence": 0.709134
+          "confidence": 0.709135
         },
         {
           "bounding_box": [
@@ -1852,7 +1852,7 @@
             ]
           ],
           "text": "前，贸易公司是靠著資訊差異兼錢，現在網路時代所有製造商資訊都可在網",
-          "confidence": 0.906913
+          "confidence": 0.906912
         },
         {
           "bounding_box": [
@@ -1962,7 +1962,7 @@
             ]
           ],
           "text": "2外部創新路徑",
-          "confidence": 0.975452
+          "confidence": 0.975451
         },
         {
           "bounding_box": [
@@ -2138,7 +2138,7 @@
             ]
           ],
           "text": "面對新時代的挑戰，傳統的貿易公司該如何開始擁抱AI技術，探索新的商業模",
-          "confidence": 0.961256
+          "confidence": 0.961255
         },
         {
           "bounding_box": [
@@ -2204,7 +2204,7 @@
             ]
           ],
           "text": "熊系統，為客户提供一站式服務。",
-          "confidence": 0.936897
+          "confidence": 0.936898
         },
         {
           "bounding_box": [
@@ -2314,7 +2314,7 @@
             ]
           ],
           "text": "鏈廠商之庫存、產能、交期串連，將可讓品牌商管理庫存如臂使指。",
-          "confidence": 0.9736
+          "confidence": 0.973601
         },
         {
           "bounding_box": [
@@ -2446,7 +2446,7 @@
             ]
           ],
           "text": "在ChatGPT横空出世後，具備AI翻譯之智能客服系統已可24小时處理来自全球各地",
-          "confidence": 0.934542
+          "confidence": 0.934541
         },
         {
           "bounding_box": [
@@ -2512,7 +2512,7 @@
             ]
           ],
           "text": "組織學習和創新擴散。",
-          "confidence": 0.945867
+          "confidence": 0.945861
         },
         {
           "bounding_box": [
@@ -2732,7 +2732,7 @@
             ]
           ],
           "text": "並結合虚擬偶像、自動影片進行直播带貨，實踐改向B2C模式的轉型，並不困難。",
-          "confidence": 0.919535
+          "confidence": 0.919536
         },
         {
           "bounding_box": [
@@ -2952,7 +2952,7 @@
             ]
           ],
           "text": "贸易TRADEMAGAZINE",
-          "confidence": 0.968537
+          "confidence": 0.968542
         },
         {
           "bounding_box": [
@@ -2977,31 +2977,31 @@
           "confidence": 0.912193
         }
       ],
-      "latency_ms": 13513.68,
-      "avg_latency_ms": 13513.68,
-      "min_latency_ms": 10781.16,
-      "max_latency_ms": 16621.31,
+      "latency_ms": 19873.43,
+      "avg_latency_ms": 19873.43,
+      "min_latency_ms": 19704.47,
+      "max_latency_ms": 20036.04,
       "timing": {
         "doc_ori": {
-          "preprocess_ms": 1.09,
-          "inference_ms": 5.59,
+          "preprocess_ms": 0.5,
+          "inference_ms": 4.91,
           "postprocess_ms": 0.01
         },
         "det": {
-          "preprocess_ms": 7.85,
-          "inference_ms": 7234.5,
-          "postprocess_ms": 6.86
+          "preprocess_ms": 4.81,
+          "inference_ms": 4069.63,
+          "postprocess_ms": 3.28
         },
         "textline_ori": {
-          "preprocess_ms": 5.88,
-          "inference_ms": 192.2,
-          "postprocess_ms": 0.46,
+          "preprocess_ms": 2.82,
+          "inference_ms": 367.61,
+          "postprocess_ms": 0.15,
           "count": 195.0
         },
         "rec": {
-          "preprocess_ms": 25.69,
-          "inference_ms": 5878.58,
-          "postprocess_ms": 143.5,
+          "preprocess_ms": 15.05,
+          "inference_ms": 15306.6,
+          "postprocess_ms": 92.84,
           "count": 195.0
         }
       }
@@ -3051,7 +3051,7 @@
             ]
           ],
           "text": "口",
-          "confidence": 0.201753
+          "confidence": 0.201747
         },
         {
           "bounding_box": [
@@ -3095,7 +3095,7 @@
             ]
           ],
           "text": "1內部創新路徑",
-          "confidence": 0.911164
+          "confidence": 0.911165
         },
         {
           "bounding_box": [
@@ -3139,7 +3139,7 @@
             ]
           ],
           "text": "·建立智能業務系統：首先可開發整合型的ERP系統，將採購、销售、物流、财務",
-          "confidence": 0.908618
+          "confidence": 0.908619
         },
         {
           "bounding_box": [
@@ -3271,7 +3271,7 @@
             ]
           ],
           "text": "專精商业模式及企业股權规劃辅",
-          "confidence": 0.758385
+          "confidence": 0.758384
         },
         {
           "bounding_box": [
@@ -3293,7 +3293,7 @@
             ]
           ],
           "text": "黄沛聲",
-          "confidence": 0.883274
+          "confidence": 0.883275
         },
         {
           "bounding_box": [
@@ -3425,7 +3425,7 @@
             ]
           ],
           "text": "2外部創新路徑",
-          "confidence": 0.988764
+          "confidence": 0.988763
         },
         {
           "bounding_box": [
@@ -3469,7 +3469,7 @@
             ]
           ],
           "text": "外部创新著重於通過策略合作和投资併購來擴大業務範疇：",
-          "confidence": 0.891748
+          "confidence": 0.891749
         },
         {
           "bounding_box": [
@@ -3491,7 +3491,7 @@
             ]
           ],
           "text": "線上取得聯繫方式，大幅壓縮中間商的生存空間。",
-          "confidence": 0.973667
+          "confidence": 0.973668
         },
         {
           "bounding_box": [
@@ -3579,7 +3579,7 @@
             ]
           ],
           "text": "併購科技公司：收購具有AI、物聯網等技術的科技公司，快速獲得技术能力。",
-          "confidence": 0.938464
+          "confidence": 0.938463
         },
         {
           "bounding_box": [
@@ -3601,7 +3601,7 @@
             ]
           ],
           "text": "面對新時代的挑戰，傳統的貿易公司該如何開始擁抱AI技術，探索新的商業模",
-          "confidence": 0.961256
+          "confidence": 0.961255
         },
         {
           "bounding_box": [
@@ -3887,7 +3887,7 @@
             ]
           ],
           "text": "形成互補的人才池。",
-          "confidence": 0.947192
+          "confidence": 0.947191
         },
         {
           "bounding_box": [
@@ -3909,7 +3909,7 @@
             ]
           ],
           "text": "在ChatGPT横空出世後，具備AI翻譯之智能客服系統已可24小时處理来自全球各地",
-          "confidence": 0.934542
+          "confidence": 0.934541
         },
         {
           "bounding_box": [
@@ -4085,7 +4085,7 @@
             ]
           ],
           "text": "局，傳統贸易公司必须：",
-          "confidence": 0.880703
+          "confidence": 0.880702
         },
         {
           "bounding_box": [
@@ -4195,7 +4195,7 @@
             ]
           ],
           "text": "並結合虚擬偶像、自動影片進行直播带貨，實踐改向B2C模式的轉型，並不困難。",
-          "confidence": 0.919535
+          "confidence": 0.919536
         },
         {
           "bounding_box": [
@@ -4415,7 +4415,7 @@
             ]
           ],
           "text": "贸易TRADEMAGAZINE",
-          "confidence": 0.960923
+          "confidence": 0.960931
         },
         {
           "bounding_box": [
@@ -4440,31 +4440,31 @@
           "confidence": 0.8753
         }
       ],
-      "latency_ms": 11400.27,
-      "avg_latency_ms": 11400.27,
-      "min_latency_ms": 11242.08,
-      "max_latency_ms": 11569.41,
+      "latency_ms": 20386.31,
+      "avg_latency_ms": 20386.31,
+      "min_latency_ms": 20301.48,
+      "max_latency_ms": 20529.0,
       "timing": {
         "doc_ori": {
-          "preprocess_ms": 1.85,
-          "inference_ms": 5.29,
-          "postprocess_ms": 6.16
+          "preprocess_ms": 0.58,
+          "inference_ms": 5.07,
+          "postprocess_ms": 3.39
         },
         "det": {
-          "preprocess_ms": 7.48,
-          "inference_ms": 5050.84,
-          "postprocess_ms": 5.33
+          "preprocess_ms": 4.72,
+          "inference_ms": 4198.24,
+          "postprocess_ms": 3.29
         },
         "textline_ori": {
-          "preprocess_ms": 5.66,
-          "inference_ms": 201.4,
-          "postprocess_ms": 0.57,
+          "preprocess_ms": 2.86,
+          "inference_ms": 375.19,
+          "postprocess_ms": 0.15,
           "count": 195.0
         },
         "rec": {
-          "preprocess_ms": 24.12,
-          "inference_ms": 5934.51,
-          "postprocess_ms": 146.3,
+          "preprocess_ms": 15.42,
+          "inference_ms": 15677.04,
+          "postprocess_ms": 94.99,
           "count": 195.0
         }
       }
@@ -5042,7 +5042,7 @@
             ]
           ],
           "text": "wèi bìng zhě",
-          "confidence": 0.957335
+          "confidence": 0.957336
         },
         {
           "bounding_box": [
@@ -5152,7 +5152,7 @@
             ]
           ],
           "text": "shàng zhī liǎng xié",
-          "confidence": 0.959895
+          "confidence": 0.959896
         },
         {
           "bounding_box": [
@@ -5287,31 +5287,31 @@
           "confidence": 0.997785
         }
       ],
-      "latency_ms": 2595.82,
-      "avg_latency_ms": 2595.82,
-      "min_latency_ms": 2382.28,
-      "max_latency_ms": 3015.87,
+      "latency_ms": 5930.51,
+      "avg_latency_ms": 5930.51,
+      "min_latency_ms": 5877.03,
+      "max_latency_ms": 6009.69,
       "timing": {
         "doc_ori": {
-          "preprocess_ms": 0.58,
-          "inference_ms": 4.53,
+          "preprocess_ms": 0.38,
+          "inference_ms": 4.97,
           "postprocess_ms": 0.01
         },
         "det": {
-          "preprocess_ms": 3.6,
-          "inference_ms": 749.97,
-          "postprocess_ms": 2.29
+          "preprocess_ms": 1.63,
+          "inference_ms": 1384.51,
+          "postprocess_ms": 1.78
         },
         "textline_ori": {
-          "preprocess_ms": 3.35,
-          "inference_ms": 110.49,
-          "postprocess_ms": 0.29,
+          "preprocess_ms": 1.82,
+          "inference_ms": 223.7,
+          "postprocess_ms": 0.12,
           "count": 111.0
         },
         "rec": {
-          "preprocess_ms": 8.37,
-          "inference_ms": 1666.52,
-          "postprocess_ms": 37.63,
+          "preprocess_ms": 4.45,
+          "inference_ms": 4276.37,
+          "postprocess_ms": 26.13,
           "count": 111.0
         }
       }

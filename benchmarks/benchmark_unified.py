@@ -561,10 +561,10 @@ def run_benchmark(args: argparse.Namespace) -> dict[str, Any]:
     if args.backend == "ort":
         ver = binfo.get("ort_version", "unknown")
         suffix = ""
+        if args.threads != 8:
+            suffix += f"_t{args.threads}"
         if getattr(args, 'disable_kleidiai', False):
             suffix += "_no_kleidiai"
-        elif args.threads != 8:
-            suffix += f"_t{args.threads}"
         output_file = RESULTS_DIR / f"ort_{ver}{suffix}.json"
     else:
         ver = binfo.get("paddle_version", "unknown")

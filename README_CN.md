@@ -69,7 +69,7 @@
 > 所有基准测试：每张图片 3 次运行，1 次预热。所有后端产生 100% 相同的文本，置信度差异 < 0.00002。
 > 复现：`python benchmarks/benchmark_unified.py --backend ort --num-runs 3 --threads 2`
 
-**为什么 ORT 1.24.3 在 t=2 时比 t=8 更快？** ORT 1.24.3 中的 KleidiAI 使用 ARM **SME2**（可扩展矩阵扩展）来处理 GEMM 和 Conv 运算。在 Apple M4 上，SME 是**共享协处理器**（每个集群 2 个设备），而非像 NEON 那样的逐核设计。当线程数 > 2 时，所有线程争抢这 2 个设备 —— Conv 密集的 det 模型从 1,328 ms（ORT 1.21.1 NEON, t=8）退化到 4,312 ms。当 threads=2 时，SME 争抢最小化，rec/textline_ori 从 SME2 加速中大幅受益。完整分析见 [Apple Silicon 上的 SME 线程扩展](#apple-silicon-上的-sme-线程扩展)。
+**为什么 ORT 1.24.3 在 t=2 时比 t=8 更快？** ORT 1.24.3 的 KleidiAI SME2 内核大幅加速了 rec（2.5 倍）和 textline_ori（2.7 倍），但 det 模型在高分辨率图片上出现退化，原因是 ORT 1.24.x 的**大核 Conv 内核回归**（kernel ≥ 7×7 在大空间输入上）。该退化**不是 SME 争抢造成的** — 在 t=2 和禁用 KleidiAI 时同样存在。因素分解：det 相比 ORT 1.21.1 的 3.2 倍差距 = 1.94 倍（线程数：t=2 vs t=8）× 1.65 倍（Conv 内核回归）。流水线总体仍然更快，因为 rec 的 2.5 倍加速远超 det 退化。完整分析见 [Apple Silicon 上的 SME 线程扩展](#apple-silicon-上的-sme-线程扩展)。
 
 <details>
 <summary><b>各模型推理耗时明细 (ms, 7 张图片平均值)</b></summary>
@@ -120,14 +120,14 @@
 
 ORT 1.24.x 使用 KleidiAI **SME2 内核**（SGEMM、IGEMM Conv、Dynamic QGemm）来利用 ARM 的可扩展矩阵扩展。在 Apple M4 上，SME 是**共享协处理器**（共 2 个设备），而非像 NEON 那样的逐核设计。这形成了线程扩展的权衡：
 
-| 线程数 | det (Conv 密集) | rec (GEMM 密集) | 流水线总耗时 |
-|:-------:|:-----------------:|:-----------------:|:--------------:|
-| 2 | 4,247 ms | **1,931 ms** | **6,332 ms** |
-| 8 | 4,312 ms | 2,579 ms | 7,096 ms |
-| 8 (无 KleidiAI) | 4,266 ms | 2,677 ms | 7,155 ms |
+| 线程数 | det (Conv 密集) | rec (GEMM 密集) | 流水线总计 |
+|:------:|:---------------:|:---------------:|:----------:|
+| ORT 1.21.1, 2 (NEON) | 2,571 ms | 6,523 ms | 9,346 ms |
 | ORT 1.21.1, 8 (NEON) | **1,328 ms** | 4,850 ms | 6,497 ms |
+| ORT 1.24.3, 2 (SME2) | 4,247 ms | **1,931 ms** | **6,332 ms** |
+| ORT 1.24.3, 8 (SME2) | 4,312 ms | 2,579 ms | 7,096 ms |
 
-**推荐：在 Apple M4 上使用 ORT >= 1.24 时设置 `threads=2`**。这样可以最小化 SME 争抢，同时在 GEMM 密集模型上充分受益于 SME2 加速。
+Det 退化 = 1.94 倍（更少线程）× 1.65 倍（Conv 内核回归）。Rec 加速 = 3.4 倍（SME2 SGEMM）。综合：t=2 时流水线比 Paddle 快 1.51 倍。
 
 ```python
 # 推荐配置：Apple M4 + ORT >= 1.24
