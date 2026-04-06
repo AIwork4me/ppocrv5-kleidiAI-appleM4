@@ -25,61 +25,63 @@ A production-ready, single-file PP-OCRv5 inference pipeline using ONNX Runtime, 
 - **Reproducible benchmarks** — run on your own platform in 3 commands
 - **Zero accuracy loss** from KleidiAI acceleration (ORT 1.21 vs 1.23: 0.000000 confidence diff)
 
-## Benchmark Results (Apple M4)
+## Benchmark Results (Apple M4, 8 threads)
 
 <table>
 <tr>
 <th>Backend</th>
+<th>KleidiAI Kernels</th>
 <th>Avg Latency</th>
 <th>vs Paddle</th>
 <th>Text Match</th>
-<th>Conf Diff</th>
 </tr>
 <tr>
 <td>Paddle 3.3.0</td>
+<td>—</td>
 <td>9,451 ms</td>
 <td>1.00x</td>
 <td>baseline</td>
-<td>—</td>
 </tr>
 <tr>
-<td>ORT 1.21.1 (no KleidiAI)</td>
+<td>ORT 1.21.1</td>
+<td>None</td>
 <td>6,407 ms</td>
-<td>1.48x </td>
-<td>228/228 (100%)</td>
-<td>0.000019</td>
+<td>1.48x faster</td>
+<td>228/228 ✓</td>
 </tr>
 <tr>
-<td><b>ORT 1.23.2 (KleidiAI)</b></td>
+<td><b>ORT 1.23.2</b></td>
+<td><b>I8MM GEMM only</b></td>
 <td><b>5,486 ms</b></td>
-<td><b>1.72x </b></td>
-<td><b>228/228 (100%)</b></td>
-<td><b>0.000019</b></td>
+<td><b>1.72x faster</b></td>
+<td><b>228/228 ✓</b></td>
 </tr>
 <tr>
-<td>ORT 1.24.3 (KleidiAI + SME Conv)</td>
+<td>ORT 1.24.3 *</td>
+<td>I8MM GEMM + SME Conv</td>
 <td>7,842 ms</td>
 <td>1.21x faster</td>
-<td>228/228 (100%)</td>
-<td>0.000019</td>
+<td>228/228 ✓</td>
 </tr>
 </table>
 
-> Measured on Apple M4, macOS ARM64, 8 threads, 7 images, 3 runs/image (ORT 1.24.3: 1 run, 0 warmup).
-> ORT 1.24.3 is slower than 1.23.2 at 8 threads due to SME device contention — see [SME Thread Scaling](#sme-thread-scaling-on-apple-silicon) below.
+> \* ORT 1.24.3 benchmarked with 1 run, 0 warmup (others: 3 runs, 1 warmup).
+> All backends produce 100% identical text, confidence diff < 0.00002.
 > Reproduce: `python benchmarks/benchmark_unified.py --backend ort --num-runs 3`
 
+**Why is ORT 1.24.3 slower than 1.23.2?** ORT 1.24.3 adds KleidiAI **SME Conv kernels** that use ARM's Scalable Matrix Extension coprocessor. On Apple M4, SME is a **shared resource** (only 2 devices for all cores), not per-core like NEON. At 8 threads, the Conv-heavy det model suffers severe contention (1,312 ms → 5,147 ms). ORT 1.23.2 only has I8MM GEMM kernels running on NEON, which scale linearly — making it the fastest at 8 threads. See [SME Thread Scaling](#sme-thread-scaling-on-apple-silicon) for the full analysis.
+
 <details>
-<summary><b>KleidiAI per-model speedup (ORT 1.21.1 → 1.23.2, inference ms per image)</b></summary>
+<summary><b>KleidiAI per-model breakdown: why 1.23.2 beats 1.24.3 at 8 threads</b></summary>
 
-| Model | ORT 1.21.1 (ms) | ORT 1.23.2 (ms) | Speedup | Role |
-|-------|---------------:|---------------:|:-------:|------|
-| doc_ori | 6.16 | 3.22 | **1.91x** | Document orientation (4-class) |
-| textline_ori | 219.99 | 118.23 | **1.86x** | Text line orientation (2-class) |
-| rec | 4,786.54 | 3,962.88 | **1.21x** | Text recognition (CTC) |
-| det | 1,305.97 | 1,311.58 | 1.00x | Text detection (DB, large-kernel Conv) |
+| Model | ORT 1.21.1 | ORT 1.23.2 | ORT 1.24.3 * | 1.23.2 Kernel | 1.24.3 Kernel |
+|-------|----------:|----------:|----------:|:---:|:---:|
+| doc_ori | 6.16 ms | 3.22 ms | 3.90 ms | I8MM GEMM | I8MM GEMM |
+| det | 1,305.97 ms | 1,311.58 ms | **5,147.35 ms** | NEON Conv | **SME Conv** (contention!) |
+| textline_ori | 219.99 ms | 118.23 ms | 92.68 ms | I8MM GEMM | I8MM GEMM + SME Conv |
+| rec | 4,786.54 ms | 3,962.88 ms | 2,497.21 ms | I8MM GEMM | I8MM GEMM + SME Conv |
 
-KleidiAI accelerates GEMM-dominated models (doc_ori, textline_ori, rec) via Arm I8MM GEMM kernels. The det model shows 1.00x at threads=8 because ORT 1.23.2 does not yet have SME Conv kernels. In ORT 1.24.x, KleidiAI's SME Conv kernels are **2.8x faster at single-thread**, but cannot scale with multiple threads due to Apple M4's limited SME devices (2 total). See [docs/SME_THREAD_SCALING.md](docs/SME_THREAD_SCALING.md) for details.
+Key insight: The det model uses large-kernel Conv (9×9), which in ORT 1.24.3 hits the new SME Conv path. With 8 threads competing for 2 SME devices, det regresses **3.9x**. Meanwhile, rec and textline_ori actually improve because their workload mixes GEMM and smaller Conv operations.
 
 </details>
 

@@ -25,61 +25,63 @@
 - **可复现基准** — 3 条命令即可在你自己的平台上运行
 - **KleidiAI 零精度损失** — ORT 1.21 vs 1.23 置信度差异：0.000000
 
-## 基准测试结果 (Apple M4)
+## 基准测试结果 (Apple M4, 8 线程)
 
 <table>
 <tr>
 <th>后端</th>
+<th>KleidiAI 内核</th>
 <th>平均延迟</th>
 <th>相对 Paddle</th>
 <th>文本匹配</th>
-<th>置信度差异</th>
 </tr>
 <tr>
 <td>Paddle 3.3.0</td>
+<td>—</td>
 <td>9,451 ms</td>
 <td>1.00x</td>
 <td>基准</td>
-<td>—</td>
 </tr>
 <tr>
-<td>ORT 1.21.1（无 KleidiAI）</td>
+<td>ORT 1.21.1</td>
+<td>无</td>
 <td>6,407 ms</td>
-<td>1.48x </td>
-<td>228/228 (100%)</td>
-<td>0.000019</td>
+<td>1.48x 快</td>
+<td>228/228 ✓</td>
 </tr>
 <tr>
-<td><b>ORT 1.23.2（KleidiAI）</b></td>
+<td><b>ORT 1.23.2</b></td>
+<td><b>仅 I8MM GEMM</b></td>
 <td><b>5,486 ms</b></td>
-<td><b>1.72x </b></td>
-<td><b>228/228 (100%)</b></td>
-<td><b>0.000019</b></td>
+<td><b>1.72x 快</b></td>
+<td><b>228/228 ✓</b></td>
 </tr>
 <tr>
-<td>ORT 1.24.3（KleidiAI + SME Conv）</td>
+<td>ORT 1.24.3 *</td>
+<td>I8MM GEMM + SME Conv</td>
 <td>7,842 ms</td>
 <td>1.21x 快</td>
-<td>228/228 (100%)</td>
-<td>0.000019</td>
+<td>228/228 ✓</td>
 </tr>
 </table>
 
-> 测试环境：Apple M4, macOS ARM64, 8 线程, 7 张图片, 每张运行 3 次（ORT 1.24.3：1 次运行, 0 次预热）。
-> ORT 1.24.3 在 8 线程下比 1.23.2 更慢，原因是 SME 设备争抢 — 详见下方 [Apple Silicon 上的 SME 线程扩展](#apple-silicon-上的-sme-线程扩展)。
+> \* ORT 1.24.3 使用 1 次运行、0 次预热（其他版本：3 次运行、1 次预热）。
+> 所有后端输出 100% 相同文本，置信度差异 < 0.00002。
 > 复现命令：`python benchmarks/benchmark_unified.py --backend ort --num-runs 3`
 
+**为什么 ORT 1.24.3 反而比 1.23.2 更慢？** ORT 1.24.3 新增了 KleidiAI 的 **SME Conv 内核**，使用 ARM 的可扩展矩阵扩展（SME）协处理器。在 Apple M4 上，SME 是**全芯片共享资源**（所有核心共享仅 2 个 SME 设备），而非像 NEON 一样每核独立。在 8 线程下，Conv 密集的 det 模型遭遇严重争抢（1,312 ms → 5,147 ms）。ORT 1.23.2 仅使用运行在 NEON 上的 I8MM GEMM 内核，线性扩展，因此在 8 线程下最快。详见 [SME 线程扩展](#apple-silicon-上的-sme-线程扩展)。
+
 <details>
-<summary><b>KleidiAI 各模型加速效果（ORT 1.21.1 → 1.23.2，每张图推理 ms）</b></summary>
+<summary><b>KleidiAI 逐模型分析：为什么 1.23.2 在 8 线程下胜过 1.24.3</b></summary>
 
-| 模型 | ORT 1.21.1 (ms) | ORT 1.23.2 (ms) | 加速比 | 功能 |
-|------|---------------:|---------------:|:------:|------|
-| doc_ori | 6.16 | 3.22 | **1.91x** | 文档方向分类（4 类） |
-| textline_ori | 219.99 | 118.23 | **1.86x** | 文本行方向分类（2 类） |
-| rec | 4,786.54 | 3,962.88 | **1.21x** | 文本识别（CTC） |
-| det | 1,305.97 | 1,311.58 | 1.00x | 文本检测（DB，大核卷积主导） |
+| 模型 | ORT 1.21.1 | ORT 1.23.2 | ORT 1.24.3 * | 1.23.2 内核路径 | 1.24.3 内核路径 |
+|------|----------:|----------:|----------:|:---:|:---:|
+| doc_ori | 6.16 ms | 3.22 ms | 3.90 ms | I8MM GEMM | I8MM GEMM |
+| det | 1,305.97 ms | 1,311.58 ms | **5,147.35 ms** | NEON Conv | **SME Conv**（争抢！） |
+| textline_ori | 219.99 ms | 118.23 ms | 92.68 ms | I8MM GEMM | I8MM GEMM + SME Conv |
+| rec | 4,786.54 ms | 3,962.88 ms | 2,497.21 ms | I8MM GEMM | I8MM GEMM + SME Conv |
 
-KleidiAI 通过 Arm I8MM GEMM 内核加速 GEMM 密集型模型（doc_ori、textline_ori、rec）。det 模型在 8 线程下显示 1.00x，因为 ORT 1.23.2 尚未包含 SME Conv 内核。在 ORT 1.24.x 中，KleidiAI 的 SME Conv 内核**单线程快 2.8 倍**，但由于 Apple M4 的 SME 设备有限（仅 2 个），多线程下无法扩展。详见 [docs/SME_THREAD_SCALING.md](docs/SME_THREAD_SCALING.md)。
+关键发现：det 模型使用大核 Conv（9×9），在 ORT 1.24.3 中命中 SME Conv 路径。8 个线程竞争 2 个 SME 设备，导致 det **退化 3.9 倍**。而 rec 和 textline_ori 反而变快，因为它们的负载混合了 GEMM 和较小的 Conv 运算。
 
 </details>
 
