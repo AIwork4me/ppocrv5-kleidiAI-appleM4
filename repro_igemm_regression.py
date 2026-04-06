@@ -4,34 +4,36 @@ ONNX Runtime KleidiAI IGEMM Conv Regression Reproducer
 =======================================================
 
 Reproduces the large-kernel Conv performance regression introduced in ORT 1.24.x
-on ARM64 (Apple Silicon). This script creates synthetic ONNX models — no external
-models or data required.
+on ARM64 (Apple Silicon).
 
 Related issue: https://github.com/microsoft/onnxruntime/issues/27633
 
-Key findings this script demonstrates:
-  1. Resolution-dependent throughput cliff for IGEMM Conv on large feature maps
-  2. Non-Conv ops (Resize, Concat) also regress on large feature maps
-  3. Massive memory allocation (+2.6 GB RSS for a single Conv 9×9 node)
-  4. High run-to-run variance (max/min > 4x) on ORT 1.24.x
+Key finding: isolated single Conv nodes are 3-5x FASTER on ORT 1.24.3 vs 1.21.1,
+but the full PP-OCRv5 det model (142 Conv nodes) is 1.65x SLOWER. This script
+reproduces both the single-node throughput cliff AND the full-model regression.
+
+4 test sections:
+  1. IGEMM Throughput Cliff — single Conv 9x9, throughput drops >40% at high-res
+  2. Det Model Regression   — real PP-OCRv5 det model, low-res vs high-res
+  3. Memory Explosion        — RSS delta +2.6 GB for a single Conv node
+  4. Variance Analysis       — run-to-run max/min ratio on det model
 
 Requirements:
     pip install onnx onnxruntime numpy
 
 Usage:
-    pip install onnxruntime==1.24.3
-    python repro_igemm_regression.py              # expect regressions
-    python repro_igemm_regression.py --threads 1  # single-thread mode
+    # With det model (full reproduction):
+    python repro_igemm_regression.py --model-path PP-OCRv5_server_det_onnx/inference.onnx
 
-    pip install onnxruntime==1.21.1
-    python repro_igemm_regression.py              # expect all PASS
+    # Without det model (synthetic tests only, Sections 2 & 4 skipped):
+    python repro_igemm_regression.py
 
-    python repro_igemm_regression.py --json       # machine-readable output
+    # JSON output:
+    python repro_igemm_regression.py --model-path /path/to/inference.onnx --json
 """
 from __future__ import annotations
 
 import argparse
-import gc
 import json
 import os
 import platform
@@ -79,102 +81,18 @@ def make_conv_model(
     return path
 
 
-def make_mixed_det_model(h: int, w: int, path: str) -> str:
-    """
-    Simulates PP-OCRv5 det model head: large-kernel Conv + Resize + Concat.
-
-    Architecture:
-        X (1, 3, H, W)
-        → Conv 3×3 ci=3→64 stride=2  (downsample to H/2 × W/2)
-        → Conv 3×3 ci=64→128 stride=2 (downsample to H/4 × W/4)
-        → Conv 9×9 ci=128→64          (large kernel, same-padding)
-        → Conv 9×9 ci=64→64           (large kernel, same-padding)
-        → Resize (upsample 2x to H/2 × W/2)
-        → Conv 3×3 ci=64→32           (refine)
-        → Y
-    """
-    nodes = []
-    inits = []
-
-    def add_conv(name, prev, ci, co, ks, stride=1):
-        pad = ks // 2
-        w_data = np.random.randn(co, ci, ks, ks).astype(np.float32) * 0.01
-        b_data = np.zeros(co, dtype=np.float32)
-        inits.append(numpy_helper.from_array(w_data, name=f"{name}_W"))
-        inits.append(numpy_helper.from_array(b_data, name=f"{name}_B"))
-        out = f"{name}_out"
-        nodes.append(helper.make_node(
-            "Conv", [prev, f"{name}_W", f"{name}_B"], [out],
-            kernel_shape=[ks, ks], pads=[pad] * 4, strides=[stride, stride],
-        ))
-        relu = f"{name}_relu"
-        nodes.append(helper.make_node("Relu", [out], [relu]))
-        return relu
-
-    # Downsample path
-    x = add_conv("down1", "X", 3, 64, 3, stride=2)
-    x = add_conv("down2", x, 64, 128, 3, stride=2)
-
-    # Large-kernel head (this is where regression manifests)
-    x = add_conv("head1", x, 128, 64, 9)
-    x = add_conv("head2", x, 64, 64, 9)
-
-    # Upsample via Resize (this also regresses on 1.24.x)
-    roi = numpy_helper.from_array(np.array([], dtype=np.float32), name="roi")
-    scales = numpy_helper.from_array(
-        np.array([1.0, 1.0, 2.0, 2.0], dtype=np.float32), name="scales"
-    )
-    inits.extend([roi, scales])
-    resize_out = "resize_out"
-    nodes.append(helper.make_node(
-        "Resize", [x, "roi", "scales"], [resize_out], mode="nearest",
-    ))
-
-    # Refine
-    final = add_conv("refine", resize_out, 64, 32, 3)
-
-    X = helper.make_tensor_value_info("X", TensorProto.FLOAT, [1, 3, h, w])
-    Y = helper.make_tensor_value_info(final, TensorProto.FLOAT, None)
-    graph = helper.make_graph(nodes, "det_like", [X], [Y], initializer=inits)
-    model = helper.make_model(graph, opset_imports=[helper.make_opsetid("", 18)])
-    model.ir_version = 9
-    onnx.save(model, path)
-    return path
-
-
-def make_resize_model(ci: int, h: int, w: int, scale: float, path: str) -> str:
-    """Pure Resize model (no Conv) to isolate Resize regression."""
-    roi = numpy_helper.from_array(np.array([], dtype=np.float32), name="roi")
-    scales = numpy_helper.from_array(
-        np.array([1.0, 1.0, scale, scale], dtype=np.float32), name="scales"
-    )
-    node = helper.make_node("Resize", ["X", "roi", "scales"], ["Y"], mode="nearest")
-    X = helper.make_tensor_value_info("X", TensorProto.FLOAT, [1, ci, h, w])
-    Y = helper.make_tensor_value_info("Y", TensorProto.FLOAT, None)
-    graph = helper.make_graph([node], "resize", [X], [Y], initializer=[roi, scales])
-    model = helper.make_model(graph, opset_imports=[helper.make_opsetid("", 18)])
-    model.ir_version = 9
-    onnx.save(model, path)
-    return path
-
-
-def make_concat_model(ci: int, h: int, w: int, n: int, path: str) -> str:
-    """Pure Concat model: concatenate n identity copies along channel axis."""
-    inputs = [f"X{i}" for i in range(n)]
-    node = helper.make_node("Concat", inputs, ["Y"], axis=1)
-    input_vis = [
-        helper.make_tensor_value_info(name, TensorProto.FLOAT, [1, ci, h, w])
-        for name in inputs
-    ]
-    Y = helper.make_tensor_value_info("Y", TensorProto.FLOAT, None)
-    graph = helper.make_graph([node], "concat", input_vis, [Y])
-    model = helper.make_model(graph, opset_imports=[helper.make_opsetid("", 18)])
-    model.ir_version = 9
-    onnx.save(model, path)
-    return path
-
-
 # ── Benchmark helpers ────────────────────────────────────────────────────────
+
+
+def _make_session(model_path: str, threads: int) -> ort.InferenceSession:
+    """Create ORT session with fixed config for reproducible benchmarks."""
+    opts = ort.SessionOptions()
+    opts.intra_op_num_threads = threads
+    opts.inter_op_num_threads = 1
+    opts.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+    opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_DISABLE_ALL
+    opts.log_severity_level = 3  # suppress warnings
+    return ort.InferenceSession(model_path, opts, providers=["CPUExecutionProvider"])
 
 
 def bench(
@@ -185,14 +103,7 @@ def bench(
     runs: int = 5,
 ) -> dict:
     """Benchmark model, return timing stats in ms."""
-    opts = ort.SessionOptions()
-    opts.intra_op_num_threads = threads
-    opts.inter_op_num_threads = 1
-    opts.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
-    opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_DISABLE_ALL
-    opts.log_severity_level = 3  # suppress warnings
-
-    sess = ort.InferenceSession(model_path, opts, providers=["CPUExecutionProvider"])
+    sess = _make_session(model_path, threads)
 
     for _ in range(warmup):
         sess.run(None, feeds)
@@ -216,10 +127,38 @@ def bench(
     }
 
 
-def get_rss_mb() -> float:
-    """Peak RSS in MB."""
-    rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-    return rss / 1024 / 1024 if sys.platform == "darwin" else rss / 1024
+def bench_det(
+    model_path: str,
+    h: int, w: int,
+    threads: int,
+    warmup: int = 2,
+    runs: int = 3,
+) -> dict:
+    """Benchmark det model at a specific resolution with random input."""
+    sess = _make_session(model_path, threads)
+    input_name = sess.get_inputs()[0].name
+    x = np.random.randn(1, 3, h, w).astype(np.float32)
+
+    for _ in range(warmup):
+        sess.run(None, {input_name: x})
+
+    times = []
+    for _ in range(runs):
+        t0 = time.perf_counter()
+        sess.run(None, {input_name: x})
+        times.append((time.perf_counter() - t0) * 1000)
+
+    avg = sum(times) / len(times)
+    mn, mx = min(times), max(times)
+    std = (sum((t - avg) ** 2 for t in times) / len(times)) ** 0.5
+    return {
+        "avg_ms": round(avg, 1),
+        "min_ms": round(mn, 1),
+        "max_ms": round(mx, 1),
+        "std_ms": round(std, 1),
+        "max_min_ratio": round(mx / mn, 2) if mn > 0 else 0,
+        "times_ms": [round(t, 1) for t in times],
+    }
 
 
 # ── Test sections ────────────────────────────────────────────────────────────
@@ -227,12 +166,16 @@ def get_rss_mb() -> float:
 
 def section_resolution_scaling(tmpdir: str, threads: int) -> dict:
     """
-    Section 1: Resolution Scaling — throughput cliff detection.
+    Section 1: IGEMM Throughput Cliff.
 
     Creates single Conv 9×9 (ci=co=64) at increasing resolutions.
-    On healthy ORT builds, throughput (pixels/ms) stays roughly constant.
+    On healthy ORT builds, throughput (pixels/ms) stays roughly constant (~280).
     On 1.24.x, throughput drops >40% above ~226K pixels due to IGEMM
     indirection table exceeding cache hierarchy.
+
+    NOTE: Even at the worst resolution, 1.24.3 is still FASTER than 1.21.1
+    for single Conv nodes (489 vs 298 pix/ms). The regression only manifests
+    in the full model context (Section 2).
     """
     ci, co, ks = 64, 64, 9
     resolutions = [
@@ -250,7 +193,6 @@ def section_resolution_scaling(tmpdir: str, threads: int) -> dict:
         results.append({"h": h, "w": w, "pixels": pixels, "pix_ms": pix_ms, **r})
         os.remove(path)
 
-    # Regression detection: compare first and last throughput
     first_pix_ms = results[0]["pix_ms"]
     last_pix_ms = results[-1]["pix_ms"]
     drop_pct = round((1 - last_pix_ms / first_pix_ms) * 100, 1) if first_pix_ms > 0 else 0
@@ -258,7 +200,7 @@ def section_resolution_scaling(tmpdir: str, threads: int) -> dict:
 
     return {
         "test": "resolution_scaling",
-        "config": f"Conv {ks}x{ks} ci=co={ci}",
+        "config": f"Conv {ks}x{ks} ci=co={ci}, threads={threads}",
         "results": results,
         "throughput_drop_pct": drop_pct,
         "regression": regression,
@@ -266,42 +208,71 @@ def section_resolution_scaling(tmpdir: str, threads: int) -> dict:
     }
 
 
-def section_mixed_model(tmpdir: str, threads: int) -> dict:
-    """
-    Section 2: Mixed Det-like Model — full model amplification.
+_DET_DOWNLOAD_MSG = """\
+  Section 2 & 4 require the PP-OCRv5 server det model (84 MB ONNX).
 
-    On healthy builds, high-res / low-res latency ratio should roughly match
-    the pixel count ratio. On 1.24.x, it exceeds this due to compounding
-    regressions in Conv + Resize + other ops.
+  Download options:
+    1. PaddleOCR official (Paddle format, then convert with paddle2onnx):
+       https://paddleocr.bj.bcebos.com/PP-OCRv5/chinese/PP-OCRv5_server_det_infer.tar
+    2. Pre-converted ONNX (see models/README.md):
+       https://github.com/AIwork4me/ppocrv5-kleidiAI-appleM4
+
+  Place at: ./PP-OCRv5_server_det_onnx/inference.onnx
+  Or specify: --model-path /path/to/inference.onnx
+"""
+
+
+def section_det_model(model_path: str | None, threads: int) -> dict:
     """
+    Section 2: Det Model Regression — the smoking gun.
+
+    Runs the real PP-OCRv5 det model at low-res and high-res with random input.
+    On healthy builds, latency scales linearly with pixel count (ratio ≈ 6.0x).
+    On 1.24.x, latency scaling is super-linear (ratio > 9x) due to multi-factor
+    regression: IGEMM throughput cliff + non-Conv op regression + memory pressure.
+
+    Key data from profiling:
+      ORT 1.21.1 t=2: det low-res  889ms, det high-res  5,288ms → ratio 5.9x
+      ORT 1.24.3 t=2: det low-res  369ms, det high-res 16,098ms → ratio 43.6x
+    """
+    if model_path is None or not os.path.isfile(model_path):
+        return {
+            "test": "det_model",
+            "skipped": True,
+            "reason": "model not found",
+            "regression": False,
+        }
+
+    # Low-res: 672×480 (322K pixels) — matches ancient_demo.png det input
+    # High-res: 1600×1216 (1.95M pixels) — matches japan_demo.png det input
+    # Both are multiples of 32 as required by the det model.
     configs = [
-        (224, 160, "low-res"),
-        (800, 608, "high-res"),
+        (672, 480, "low-res"),
+        (1600, 1216, "high-res"),
     ]
 
     results = []
     for h, w, label in configs:
-        path = os.path.join(tmpdir, f"det_{h}_{w}.onnx")
-        make_mixed_det_model(h, w, path)
-        x = np.random.randn(1, 3, h, w).astype(np.float32)
-        r = bench(path, {"X": x}, threads=threads, warmup=2, runs=3)
-        results.append({"label": label, "h": h, "w": w, **r})
-        os.remove(path)
+        r = bench_det(model_path, h, w, threads=threads, warmup=2, runs=3)
+        pixels = h * w
+        results.append({"label": label, "h": h, "w": w, "pixels": pixels, **r})
 
-    # Expected pixel ratio: (800*608)/(224*160) = 13.6
-    # Expected latency ratio for linear scaling: ~13.6
-    # With regression, ratio will be much higher
     low = results[0]["avg_ms"]
     high = results[1]["avg_ms"]
-    pixel_ratio = (800 * 608) / (224 * 160)
+    pixel_ratio = round(results[1]["pixels"] / results[0]["pixels"], 1)
     latency_ratio = round(high / low, 1) if low > 0 else 0
-    excess = round(latency_ratio / pixel_ratio, 2)
-    regression = excess > 1.5  # latency grows much faster than pixels
+    excess = round(latency_ratio / pixel_ratio, 2) if pixel_ratio > 0 else 0
+
+    # On healthy builds: excess ≈ 1.0 (linear scaling)
+    # On 1.24.x: excess > 1.5 (super-linear, regression)
+    regression = excess > 1.5
 
     return {
-        "test": "mixed_det_model",
+        "test": "det_model",
+        "skipped": False,
+        "model_path": model_path,
         "results": results,
-        "pixel_ratio": round(pixel_ratio, 1),
+        "pixel_ratio": pixel_ratio,
         "latency_ratio": latency_ratio,
         "excess_ratio": excess,
         "regression": regression,
@@ -309,76 +280,14 @@ def section_mixed_model(tmpdir: str, threads: int) -> dict:
     }
 
 
-def section_non_conv_ops(tmpdir: str, threads: int) -> dict:
+def section_memory(threads: int) -> dict:
     """
-    Section 3: Non-Conv Op Regression — Resize and Concat.
-
-    Even without Conv nodes, Resize and Concat regress on large feature maps
-    in ORT 1.24.x. This measures absolute throughput (output MB/s) for Resize
-    to detect abnormal slowdowns independent of input size.
-
-    The regression observed in profiling: Resize 97ms→1044ms (10.7x) on
-    japan_demo.png (1600×1216) det model. We test with 256-channel feature maps
-    at sizes matching the det model's internal feature maps.
-    """
-    results = {}
-
-    # Resize: 256-channel feature maps at det-model-like sizes
-    # In the det model, Resize upsamples ~400×300 → ~800×600 at ci=256
-    for label, ci, h, w, scale in [
-        ("resize_small", 256, 56, 56, 2.0),     # small: 56→112 (baseline)
-        ("resize_large", 256, 200, 152, 2.0),    # large: 200→400 (det-like)
-    ]:
-        path = os.path.join(tmpdir, f"{label}.onnx")
-        make_resize_model(ci, h, w, scale, path)
-        x = np.random.randn(1, ci, h, w).astype(np.float32)
-        r = bench(path, {"X": x}, threads=threads, warmup=3, runs=5)
-        # Compute output throughput: output_bytes / time
-        oh, ow = int(h * scale), int(w * scale)
-        output_mb = ci * oh * ow * 4 / 1024 / 1024  # float32
-        throughput_mb_s = round(output_mb / (r["avg_ms"] / 1000), 1) if r["avg_ms"] > 0 else 0
-        results[label] = {
-            "ci": ci, "h": h, "w": w, "scale": scale,
-            "output_size": f"{oh}×{ow}", "output_mb": round(output_mb, 1),
-            "throughput_mb_s": throughput_mb_s, **r,
-        }
-        os.remove(path)
-
-    # Concat: small vs large feature map
-    for label, ci, h, w, n in [
-        ("concat_small", 64, 56, 56, 4),
-        ("concat_large", 64, 400, 304, 4),
-    ]:
-        path = os.path.join(tmpdir, f"{label}.onnx")
-        make_concat_model(ci, h, w, n, path)
-        feeds = {f"X{i}": np.random.randn(1, ci, h, w).astype(np.float32) for i in range(n)}
-        r = bench(path, feeds, threads=threads, warmup=3, runs=5)
-        results[label] = {"ci": ci, "h": h, "w": w, "n_inputs": n, **r}
-        os.remove(path)
-
-    # Regression detection: Resize throughput should be consistent (memory-bound).
-    # On healthy builds, throughput stays ~10-15 GB/s regardless of size.
-    # On 1.24.x with large feature maps, throughput can drop to <2 GB/s.
-    small_tp = results["resize_small"]["throughput_mb_s"]
-    large_tp = results["resize_large"]["throughput_mb_s"]
-    tp_drop_pct = round((1 - large_tp / small_tp) * 100, 1) if small_tp > 0 else 0
-    regression = tp_drop_pct > 50  # >50% throughput drop is abnormal for memory-bound op
-
-    return {
-        "test": "non_conv_ops",
-        "results": results,
-        "resize_throughput_drop_pct": tp_drop_pct,
-        "regression": regression,
-        "threshold": "Resize throughput drop > 50% (small→large)",
-    }
-
-
-def section_memory(tmpdir: str, threads: int) -> dict:
-    """
-    Section 4: Memory Measurement — RSS delta after inference.
+    Section 3: Memory Explosion.
 
     ORT 1.24.x allocates massive internal buffers for IGEMM Conv path.
-    We measure RSS in a subprocess to get a clean baseline.
+    Measured in a subprocess for clean RSS baseline.
+
+    Expected: ORT 1.21.1 → +96 MB, ORT 1.24.3 → +2,640 MB
     """
     import subprocess
 
@@ -429,12 +338,21 @@ os.remove(path)
 os.rmdir(tmpdir)
 '''
 
-    result = subprocess.run(
-        [sys.executable, "-c", measure_script],
-        capture_output=True, text=True, timeout=120,
-    )
+    try:
+        result = subprocess.run(
+            [sys.executable, "-c", measure_script],
+            capture_output=True, text=True, timeout=120,
+        )
+    except subprocess.TimeoutExpired:
+        return {
+            "test": "memory",
+            "config": "Conv 9x9 ci=co=64 400x304 (subprocess)",
+            "rss_before_mb": -1, "rss_after_mb": -1, "rss_delta_mb": -1,
+            "regression": False, "threshold": "RSS delta > 500 MB",
+            "error": "timeout",
+        }
 
-    if result.returncode == 0:
+    if result.returncode == 0 and result.stdout.strip():
         parts = result.stdout.strip().split()
         rss_before = float(parts[0])
         rss_after = float(parts[1])
@@ -455,26 +373,39 @@ os.rmdir(tmpdir)
     }
 
 
-def section_variance(tmpdir: str, threads: int) -> dict:
+def section_variance(
+    model_path: str | None, tmpdir: str, threads: int,
+) -> dict:
     """
-    Section 5: Variance Analysis — run-to-run stability.
+    Section 4: Variance Analysis.
 
-    ORT 1.24.x shows extreme latency variance for large-kernel Conv on
-    large feature maps. Healthy builds: max/min < 1.3x. Regression: > 2x.
+    ORT 1.24.x shows extreme latency variance on the det model at high-res.
+    Profiling data: ORT 1.24.3 det max/min = 4.87x; ORT 1.21.1 = 1.19x.
+
+    Uses real det model if available; falls back to synthetic Conv 9×9.
     """
-    ci, co, ks, h, w = 64, 64, 9, 544, 416  # above throughput cliff
-    path = os.path.join(tmpdir, "var_conv.onnx")
-    make_conv_model(ci, co, ks, h, w, path)
-    x = np.random.randn(1, ci, h, w).astype(np.float32)
+    use_det = model_path is not None and os.path.isfile(model_path)
 
-    r = bench(path, {"X": x}, threads=threads, warmup=3, runs=20)
-    os.remove(path)
+    if use_det:
+        # High-res det model, 10 runs
+        r = bench_det(model_path, 1600, 1216, threads=threads, warmup=2, runs=10)
+        config = "det model [1,3,1600,1216], 10 runs"
+    else:
+        # Fallback: synthetic Conv above throughput cliff
+        ci, co, ks, h, w = 64, 64, 9, 544, 416
+        path = os.path.join(tmpdir, "var_conv.onnx")
+        make_conv_model(ci, co, ks, h, w, path)
+        x = np.random.randn(1, ci, h, w).astype(np.float32)
+        r = bench(path, {"X": x}, threads=threads, warmup=3, runs=20)
+        os.remove(path)
+        config = f"Conv {ks}x{ks} ci=co={ci} {h}x{w}, 20 runs (synthetic fallback)"
 
     regression = r["max_min_ratio"] > 2.0
 
     return {
         "test": "variance",
-        "config": f"Conv {ks}x{ks} ci=co={ci} {h}x{w}, 20 runs",
+        "config": config,
+        "uses_det_model": use_det,
         **r,
         "regression": regression,
         "threshold": "max/min ratio > 2.0x",
@@ -488,9 +419,26 @@ def main():
     parser = argparse.ArgumentParser(
         description="ORT KleidiAI IGEMM Conv regression reproducer"
     )
+    parser.add_argument(
+        "--model-path", type=str, default=None,
+        help="Path to PP-OCRv5 det ONNX model (inference.onnx). "
+             "If not provided, searches default locations.",
+    )
     parser.add_argument("--threads", type=int, default=2, help="intra_op_num_threads")
     parser.add_argument("--json", action="store_true", help="JSON output to stdout")
     args = parser.parse_args()
+
+    # Auto-detect model path if not specified
+    model_path = args.model_path
+    if model_path is None:
+        for candidate in [
+            "PP-OCRv5_server_det_onnx/inference.onnx",
+            "../PP-OCRv5_server_det_onnx/inference.onnx",
+            "models/PP-OCRv5_server_det_onnx/inference.onnx",
+        ]:
+            if os.path.isfile(candidate):
+                model_path = candidate
+                break
 
     env = {
         "ort_version": ort.__version__,
@@ -498,6 +446,7 @@ def main():
         "python": sys.version.split()[0],
         "platform": f"{sys.platform} / {platform.machine()}",
         "threads": args.threads,
+        "det_model": model_path if model_path and os.path.isfile(model_path) else None,
     }
     try:
         env["macos"] = platform.mac_ver()[0]
@@ -514,11 +463,12 @@ def main():
 
     tmpdir = tempfile.mkdtemp()
     all_results = {"environment": env, "sections": []}
+    skipped_count = 0
 
     try:
-        # Section 1: Resolution Scaling
+        # ── Section 1: Resolution Scaling ────────────────────────────────
         if not args.json:
-            print("Section 1: Resolution Scaling (Conv 9x9 ci=co=64)")
+            print("Section 1: IGEMM Throughput Cliff (Conv 9x9 ci=co=64)")
             print("-" * 70)
         s1 = section_resolution_scaling(tmpdir, args.threads)
         all_results["sections"].append(s1)
@@ -531,58 +481,54 @@ def main():
             print(f"  Throughput drop: {s1['throughput_drop_pct']}%  [{status}]")
             print()
 
-        # Section 2: Mixed Det-like Model
+        # ── Section 2: Det Model Regression ──────────────────────────────
         if not args.json:
-            print("Section 2: Mixed Det-like Model (Conv 9x9 + Resize + ...)")
+            print("Section 2: Det Model Regression (PP-OCRv5 server det)")
             print("-" * 70)
-        s2 = section_mixed_model(tmpdir, args.threads)
+        s2 = section_det_model(model_path, args.threads)
         all_results["sections"].append(s2)
         if not args.json:
-            for r in s2["results"]:
-                print(f"  {r['label']:<10s} ({r['h']}×{r['w']}):  {r['avg_ms']:>8.1f}ms")
-            print(f"  Pixel ratio: {s2['pixel_ratio']}x, Latency ratio: {s2['latency_ratio']}x, Excess: {s2['excess_ratio']}x")
-            status = "REGRESSION" if s2["regression"] else "OK"
-            print(f"  [{status}]")
+            if s2.get("skipped"):
+                print("  [SKIPPED] Det model not found.")
+                print(_DET_DOWNLOAD_MSG)
+                skipped_count += 1
+            else:
+                for r in s2["results"]:
+                    pixels_k = r["pixels"] // 1000
+                    print(f"  {r['label']:<10s} [{r['h']}×{r['w']}]:  {r['avg_ms']:>9.1f}ms  ({pixels_k}K pixels)")
+                print(f"  Pixel ratio: {s2['pixel_ratio']}x  Latency ratio: {s2['latency_ratio']}x  Excess: {s2['excess_ratio']}x")
+                status = "REGRESSION" if s2["regression"] else "OK"
+                print(f"  [{status}]")
             print()
 
-        # Section 3: Non-Conv Ops
+        # ── Section 3: Memory ────────────────────────────────────────────
         if not args.json:
-            print("Section 3: Non-Conv Op Regression (Resize, Concat)")
+            print("Section 3: Memory Explosion (RSS delta, Conv 9x9 ci=co=64)")
             print("-" * 70)
-        s3 = section_non_conv_ops(tmpdir, args.threads)
+        s3 = section_memory(args.threads)
         all_results["sections"].append(s3)
         if not args.json:
-            for label, r in s3["results"].items():
-                size = f"{r['h']}×{r['w']}"
-                tp = f"  {r['throughput_mb_s']} MB/s" if "throughput_mb_s" in r else ""
-                print(f"  {label:<16s}  ({size:>9s}):  {r['avg_ms']:>8.1f}ms{tp}")
-            print(f"  Resize throughput drop: {s3['resize_throughput_drop_pct']}%")
-            status = "REGRESSION" if s3["regression"] else "OK"
-            print(f"  [{status}]")
+            if s3["rss_delta_mb"] >= 0:
+                print(f"  Before: {s3['rss_before_mb']:.0f} MB → After: {s3['rss_after_mb']:.0f} MB")
+                print(f"  Delta: +{s3['rss_delta_mb']:.0f} MB", end="")
+                status = "REGRESSION" if s3["regression"] else "OK"
+                print(f"  [{status}]")
+            else:
+                print(f"  [ERROR] Subprocess measurement failed")
             print()
 
-        # Section 4: Memory
+        # ── Section 4: Variance ──────────────────────────────────────────
         if not args.json:
-            print("Section 4: Memory (RSS delta for 1 Conv 9x9 inference)")
+            print("Section 4: Variance Analysis")
             print("-" * 70)
-        s4 = section_memory(tmpdir, args.threads)
+        s4 = section_variance(model_path, tmpdir, args.threads)
         all_results["sections"].append(s4)
         if not args.json:
-            print(f"  Before: {s4['rss_before_mb']:.0f} MB → After: {s4['rss_after_mb']:.0f} MB")
-            print(f"  Delta: +{s4['rss_delta_mb']:.0f} MB", end="")
+            if not s4.get("uses_det_model") and model_path is None:
+                print(f"  (det model not available, using synthetic fallback)")
+            print(f"  Config: {s4['config']}")
+            print(f"  avg: {s4['avg_ms']:.1f}ms  std: {s4['std_ms']:.1f}ms  max/min: {s4['max_min_ratio']}x")
             status = "REGRESSION" if s4["regression"] else "OK"
-            print(f"  [{status}]")
-            print()
-
-        # Section 5: Variance
-        if not args.json:
-            print("Section 5: Variance (20 runs, Conv 9x9 ci=co=64 544x416)")
-            print("-" * 70)
-        s5 = section_variance(tmpdir, args.threads)
-        all_results["sections"].append(s5)
-        if not args.json:
-            print(f"  avg: {s5['avg_ms']:.1f}ms  std: {s5['std_ms']:.1f}ms  max/min: {s5['max_min_ratio']}x")
-            status = "REGRESSION" if s5["regression"] else "OK"
             print(f"  [{status}]")
             print()
 
@@ -592,11 +538,13 @@ def main():
         os.rmdir(tmpdir)
 
     # Summary
-    regression_count = sum(1 for s in all_results["sections"] if s["regression"])
-    total = len(all_results["sections"])
+    active_sections = [s for s in all_results["sections"] if not s.get("skipped")]
+    regression_count = sum(1 for s in active_sections if s["regression"])
+    total = len(active_sections)
     all_results["summary"] = {
         "regressions": regression_count,
         "total_tests": total,
+        "skipped": skipped_count,
         "verdict": "REGRESSION DETECTED" if regression_count > 0 else "ALL PASS",
     }
 
@@ -606,11 +554,19 @@ def main():
     else:
         print("=" * 70)
         if regression_count > 0:
-            print(f"  RESULT: {regression_count}/{total} sections show regression")
+            print(f"  RESULT: {regression_count}/{total} sections show regression", end="")
+            if skipped_count:
+                print(f" ({skipped_count} skipped)")
+            else:
+                print()
             print(f"  This ORT build ({ort.__version__}) exhibits the IGEMM Conv regression.")
             print(f"  See: https://github.com/microsoft/onnxruntime/issues/27633")
         else:
-            print(f"  RESULT: ALL {total} sections PASS — no regression detected")
+            print(f"  RESULT: ALL {total} sections PASS — no regression detected", end="")
+            if skipped_count:
+                print(f" ({skipped_count} skipped)")
+            else:
+                print()
         print("=" * 70)
 
 
