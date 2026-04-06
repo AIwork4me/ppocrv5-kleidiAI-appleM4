@@ -7,8 +7,8 @@
 ## Identity
 
 **ppocrv5-kleidiAI-appleM4** — A production-ready, single-file PP-OCRv5 inference
-pipeline on ONNX Runtime, delivering 1.72x speedup over PaddleOCR native inference
-on Apple M4 (ORT 1.23.2, 8 threads) with 100% text-level accuracy alignment (228/228 texts, 7 images).
+pipeline on ONNX Runtime, delivering 1.51x speedup over PaddleOCR native inference
+on Apple M4 (ORT 1.24.3, 2 threads, KleidiAI SME2) with 100% text-level accuracy alignment (228/228 texts, 7 images).
 
 ## Quick Reference
 
@@ -16,11 +16,11 @@ on Apple M4 (ORT 1.23.2, 8 threads) with 100% text-level accuracy alignment (228
 |------|---------|
 | Run OCR | `python ppocrv5_onnx.py` |
 | Run quickstart | `python examples/quickstart.py` |
-| Run benchmark (ORT) | `python benchmarks/benchmark_unified.py --backend ort --num-runs 3` |
+| Run benchmark (ORT) | `python benchmarks/benchmark_unified.py --backend ort --num-runs 3 --threads 2` |
 | Run benchmark (Paddle) | `python benchmarks/benchmark_unified.py --backend paddle --num-runs 3` |
 | Compare results | `python benchmarks/compare_results.py` |
 | Verify models | `python scripts/download_models.py` |
-| Install deps | `pip install onnxruntime>=1.22.0 opencv-python-headless numpy pyclipper` |
+| Install deps | `pip install onnxruntime>=1.21.0 opencv-python-headless numpy pyclipper` |
 
 ## Architecture
 
@@ -57,7 +57,7 @@ benchmarks/
   benchmark_unified.py              Unified benchmark with --backend paddle|ort.
                                       Imports from ppocrv5_onnx (no code duplication).
                                       ABC: InferenceBackend → OrtBackend, PaddleBackend.
-                                      Output: results/{backend}_{version}.json
+                                      Output: results/{backend}_{version}[_t{N}][_no_kleidiai].json
 
   compare_results.py                Auto-discovers results/*.json, prints comparison tables.
 
@@ -71,9 +71,10 @@ models/                              Git-ignored. User downloads ONNX models (~1
 
 results/                             Reference benchmark JSONs (Apple M4).
   paddle_3.3.0.json                  Baseline.
-  ort_1.21.1.json                    Without KleidiAI.
-  ort_1.23.2.json                    With KleidiAI I8MM GEMM (recommended at t=8).
-  ort_1.24.3.json                    With KleidiAI SME Conv (det regressed at t=8).
+  ort_1.21.1.json                    Without KleidiAI (NEON only, t=8).
+  ort_1.24.3.json                    With KleidiAI SME2 (t=8).
+  ort_1.24.3_t2.json                 With KleidiAI SME2 (t=2, recommended).
+  ort_1.24.3_no_kleidiai.json        KleidiAI disabled (NEON fallback, t=8).
 
 docs/
   ACCURACY_ALIGNMENT.md              6-round journey from 65.6% → 100%.
@@ -189,29 +190,29 @@ Output files in `results/` follow this structure:
 ```json
 {
   "metadata": {
-    "engine": "ONNX Runtime 1.23.2",
-    "avg_latency_ms": 5486.44,
-    "fps": 0.1823,
-    "init_time_sec": 0.70,
-    "cpu_threads": 8,
+    "engine": "ONNX Runtime 1.24.3",
+    "avg_latency_ms": 6332.0,
+    "fps": 0.158,
+    "init_time_sec": 0.16,
+    "cpu_threads": 2,
     "num_runs": 3,
     "total_images": 7,
     "hw_info": { "cpu": "...", "platform": "...", "memory_gb": "..." }
   },
   "aggregate_timing": {
-    "doc_ori": { "preprocess_ms": 0.5, "inference_ms": 1.3, "postprocess_ms": 0.1 },
-    "det": { "preprocess_ms": 7.0, "inference_ms": 3780.0, "postprocess_ms": 8.0 },
-    "textline_ori": { "preprocess_ms": 3.0, "inference_ms": 36.5, "postprocess_ms": 0.2, "count": 228 },
-    "rec": { "preprocess_ms": 12.0, "inference_ms": 1319.0, "postprocess_ms": 50.0, "count": 228 }
+    "doc_ori": { "preprocess_ms": 0.9, "inference_ms": 3.4, "postprocess_ms": 0.6 },
+    "det": { "preprocess_ms": 6.6, "inference_ms": 4246.6, "postprocess_ms": 3.9 },
+    "textline_ori": { "preprocess_ms": 2.6, "inference_ms": 80.8, "postprocess_ms": 0.1, "count": 684 },
+    "rec": { "preprocess_ms": 9.6, "inference_ms": 1931.2, "postprocess_ms": 39.6, "count": 684 }
   },
   "hotspots": [
-    { "model": "det", "phase": "inference", "total_ms": 26460.0, "percent": 65.7 }
+    { "model": "det", "phase": "inference", "total_ms": 29726.0, "percent": 67.3 }
   ],
   "results": [
     {
       "image_path": "magazine.png",
       "results": [{ "text": "...", "confidence": 0.9998, "bounding_box": [[x,y], ...] }],
-      "avg_latency_ms": 12519.0,
+      "avg_latency_ms": 11601.0,
       "timing": { ... }
     }
   ]
@@ -222,7 +223,7 @@ Output files in `results/` follow this structure:
 
 | Package | Version | Purpose |
 |---------|---------|---------|
-| `onnxruntime` | >= 1.21.0 (>= 1.22.0 for KleidiAI) | ONNX inference engine |
+| `onnxruntime` | >= 1.21.0 (>= 1.24 for KleidiAI SME2) | ONNX inference engine |
 | `opencv-python-headless` | >= 4.8.0 | Image I/O, resize, warp, contours |
 | `numpy` | >= 1.24.0 | Array operations |
 | `pyclipper` | >= 1.3.0 | Polygon expansion (DB post-processing) |
@@ -240,16 +241,16 @@ Output files in `results/` follow this structure:
 ### "Optimize inference speed"
 
 - Profile with `benchmark_unified.py`. Check `hotspots` in the output JSON.
-- **Thread scaling matters**: On Apple M4, KleidiAI's SME Conv kernels are 2.8x faster at
-  single-thread but barely scale beyond 2 threads (SME device contention). NEON scales ~4x
-  to 8 threads. See `docs/SME_THREAD_SCALING.md`.
+- **Thread scaling matters**: On Apple M4, KleidiAI's SME2 kernels (SGEMM, IGEMM Conv)
+  are 2.5-2.8x faster at t=1-2 but barely scale beyond 2 threads due to SME device
+  contention. NEON scales ~4x to 8 threads. See `docs/SME_THREAD_SCALING.md`.
 - Hotspot distribution depends on ORT version and thread count:
-  - ORT 1.23.2, t=8: `rec/inference` dominates (~72%), `det/inference` is ~24%
-  - ORT 1.24.3, t=8: `det/inference` dominates (~66%) due to SME Conv contention
-- `det/inference` is large-kernel Conv — KleidiAI's SME Conv kernels DO accelerate it
-  at t=1-2, but contention at t>=3 negates the benefit. Use `--threads 2` or
-  `--disable-kleidiai` for optimal det performance.
-- `rec/inference` benefits from KleidiAI I8MM GEMM at any thread count.
+  - ORT 1.21.1, t=8 (NEON): `rec/inference` dominates (~75%), `det/inference` is ~20%
+  - ORT 1.24.3, t=8 (SME2): `det/inference` dominates (~61%) due to SME Conv contention
+  - ORT 1.24.3, t=2 (SME2): `det/inference` dominates (~67%), but pipeline total is lowest
+- `det/inference` is large-kernel Conv — KleidiAI's SME Conv is fast at t=1-2 but
+  contends at t>=3. Use `--threads 2` for optimal pipeline throughput.
+- `rec/inference` benefits massively from KleidiAI SME2 SGEMM (2.5x at t=2).
 - After ANY optimization, re-run the 228-text verification protocol.
 
 ### "Port to a new platform"
@@ -274,10 +275,12 @@ Output files in `results/` follow this structure:
 
 ## Known Issues
 
-- **KleidiAI SME Conv contention on Apple Silicon** (ORT >= 1.24): The SME Conv kernels
+- **KleidiAI SME Conv contention on Apple Silicon** (ORT >= 1.24): The SME2 Conv kernels
   barely scale beyond 2 threads on Apple M4 (which has only 2 SME devices). At `threads=8`,
-  the det model can regress 3-4x compared to ORT 1.21.1. Workarounds: use ORT 1.23.2 at
-  `threads=8`, or use ORT >= 1.24 with `--threads 2` or `--disable-kleidiai`. See
+  the det model regresses ~3.2x compared to ORT 1.21.1. Recommended: use ORT 1.24.3 with
+  `--threads 2` for best overall pipeline throughput, or use ORT 1.21.1 at `threads=8`
+  for best det-only latency. Note: `mlas.disable_kleidiai=1` does NOT fully revert
+  the Conv path in ORT 1.24.3 (det remains ~4,266 ms). See
   [onnxruntime#27633](https://github.com/microsoft/onnxruntime/issues/27633) and
   `docs/SME_THREAD_SCALING.md`.
 

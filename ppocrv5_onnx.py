@@ -532,12 +532,11 @@ class PPOCRv5Pipeline:
         dict_path: Path to ppocrv5_dict.txt. Defaults to
             ``model_dir/../data/dict/ppocrv5_dict.txt`` if not specified.
         threads: Number of CPU threads for ORT (default: 4).
-            On Apple Silicon with ORT >= 1.24, KleidiAI's SME Conv kernels
-            are fastest at threads=1-2 but barely scale beyond that due to
-            SME device contention (Apple M4 has only 2 SME devices).
-            For threads > 2, consider disabling KleidiAI via
-            ``opts.add_session_config_entry("mlas.disable_kleidiai", "1")``
-            to fall back to NEON which scales linearly.
+            On Apple Silicon with ORT >= 1.24, KleidiAI's SME2 kernels
+            (SGEMM, IGEMM Conv, Dynamic QGemm) are fastest at threads=1-2
+            but barely scale beyond that due to SME device contention
+            (Apple M4 has only 2 SME devices). Recommended: threads=2
+            for best overall pipeline throughput on Apple M4.
             See docs/SME_THREAD_SCALING.md for details.
         det_path: Override path to detection model ONNX file.
         rec_path: Override path to recognition model ONNX file.

@@ -16,32 +16,32 @@
     "num_runs": 3,
     "num_warmup": 1,
     "total_images": 7,
-    "total_time_ms": 66159.44,
-    "avg_latency_ms": 9451.35,
-    "fps": 0.1058,
-    "init_time_sec": 0.54
+    "total_time_ms": 66968.02,
+    "avg_latency_ms": 9566.86,
+    "fps": 0.1045,
+    "init_time_sec": 2.65
   },
   "aggregate_timing": {
     "doc_ori": {
-      "preprocess_ms": 0.52,
-      "inference_ms": 9.86,
-      "postprocess_ms": 0.52
+      "preprocess_ms": 0.86,
+      "inference_ms": 9.65,
+      "postprocess_ms": 0.69
     },
     "det": {
-      "preprocess_ms": 8.39,
-      "inference_ms": 4148.13,
-      "postprocess_ms": 10.87
+      "preprocess_ms": 7.82,
+      "inference_ms": 4296.21,
+      "postprocess_ms": 9.45
     },
     "textline_ori": {
-      "preprocess_ms": 2.52,
-      "inference_ms": 447.72,
-      "postprocess_ms": 0.27,
+      "preprocess_ms": 3.12,
+      "inference_ms": 444.61,
+      "postprocess_ms": 0.25,
       "count": 684.0
     },
     "rec": {
-      "preprocess_ms": 12.16,
-      "inference_ms": 4741.49,
-      "postprocess_ms": 62.06,
+      "preprocess_ms": 10.1,
+      "inference_ms": 4728.09,
+      "postprocess_ms": 48.01,
       "count": 684.0
     }
   },
@@ -49,19 +49,19 @@
     {
       "model": "rec",
       "phase": "inference",
-      "total_ms": 33190.45,
-      "percent": 50.2
+      "total_ms": 33096.61,
+      "percent": 49.5
     },
     {
       "model": "det",
       "phase": "inference",
-      "total_ms": 29036.89,
-      "percent": 43.9
+      "total_ms": 30073.5,
+      "percent": 44.9
     },
     {
       "model": "textline_ori",
       "phase": "inference",
-      "total_ms": 3134.04,
+      "total_ms": 3112.3,
       "percent": 4.7
     }
   ],
@@ -334,31 +334,31 @@
           "confidence": 0.949897
         }
       ],
-      "latency_ms": 2721.69,
-      "avg_latency_ms": 2721.69,
-      "min_latency_ms": 2713.65,
-      "max_latency_ms": 2726.22,
+      "latency_ms": 2706.79,
+      "avg_latency_ms": 2706.79,
+      "min_latency_ms": 2704.57,
+      "max_latency_ms": 2708.09,
       "timing": {
         "doc_ori": {
-          "preprocess_ms": 0.32,
-          "inference_ms": 9.71,
+          "preprocess_ms": 0.38,
+          "inference_ms": 9.54,
           "postprocess_ms": 0.01
         },
         "det": {
-          "preprocess_ms": 1.11,
-          "inference_ms": 868.75,
-          "postprocess_ms": 1.07
+          "preprocess_ms": 1.17,
+          "inference_ms": 883.38,
+          "postprocess_ms": 1.16
         },
         "textline_ori": {
-          "preprocess_ms": 1.08,
-          "inference_ms": 166.01,
-          "postprocess_ms": 0.05,
+          "preprocess_ms": 1.24,
+          "inference_ms": 164.12,
+          "postprocess_ms": 0.07,
           "count": 36.0
         },
         "rec": {
-          "preprocess_ms": 2.71,
-          "inference_ms": 1655.27,
-          "postprocess_ms": 12.66,
+          "preprocess_ms": 2.87,
+          "inference_ms": 1625.74,
+          "postprocess_ms": 13.69,
           "count": 36.0
         }
       }
@@ -386,7 +386,7 @@
             ]
           ],
           "text": "初到黄州",
-          "confidence": 0.806547
+          "confidence": 0.806394
         },
         {
           "bounding_box": [
@@ -518,7 +518,7 @@
             ]
           ],
           "text": "逐客不妨员外置，",
-          "confidence": 0.956095
+          "confidence": 0.956102
         },
         {
           "bounding_box": [
@@ -562,7 +562,7 @@
             ]
           ],
           "text": "只惭无补丝毫事，",
-          "confidence": 0.954255
+          "confidence": 0.954279
         },
         {
           "bounding_box": [
@@ -587,31 +587,31 @@
           "confidence": 0.983137
         }
       ],
-      "latency_ms": 1816.09,
-      "avg_latency_ms": 1816.09,
-      "min_latency_ms": 1801.43,
-      "max_latency_ms": 1842.34,
+      "latency_ms": 1823.81,
+      "avg_latency_ms": 1823.81,
+      "min_latency_ms": 1817.8,
+      "max_latency_ms": 1834.01,
       "timing": {
         "doc_ori": {
-          "preprocess_ms": 0.31,
-          "inference_ms": 9.68,
+          "preprocess_ms": 0.37,
+          "inference_ms": 9.54,
           "postprocess_ms": 0.01
         },
         "det": {
-          "preprocess_ms": 1.2,
-          "inference_ms": 1090.66,
-          "postprocess_ms": 0.78
+          "preprocess_ms": 1.28,
+          "inference_ms": 1106.75,
+          "postprocess_ms": 0.82
         },
         "textline_ori": {
-          "preprocess_ms": 0.52,
-          "inference_ms": 138.53,
+          "preprocess_ms": 0.54,
+          "inference_ms": 136.88,
           "postprocess_ms": 0.05,
           "count": 30.0
         },
         "rec": {
-          "preprocess_ms": 0.76,
-          "inference_ms": 568.17,
-          "postprocess_ms": 3.98,
+          "preprocess_ms": 0.78,
+          "inference_ms": 560.85,
+          "postprocess_ms": 4.35,
           "count": 30.0
         }
       }
@@ -639,7 +639,7 @@
             ]
           ],
           "text": "Dreams",
-          "confidence": 0.988353
+          "confidence": 0.988357
         },
         {
           "bounding_box": [
@@ -661,7 +661,7 @@
             ]
           ],
           "text": "-Langston Hughes",
-          "confidence": 0.971667
+          "confidence": 0.971671
         },
         {
           "bounding_box": [
@@ -683,7 +683,7 @@
             ]
           ],
           "text": "Hold fast to dreams",
-          "confidence": 0.963123
+          "confidence": 0.963042
         },
         {
           "bounding_box": [
@@ -705,7 +705,7 @@
             ]
           ],
           "text": "For if dreams die",
-          "confidence": 0.966558
+          "confidence": 0.96654
         },
         {
           "bounding_box": [
@@ -793,7 +793,7 @@
             ]
           ],
           "text": "For when dreams go",
-          "confidence": 0.969174
+          "confidence": 0.969177
         },
         {
           "bounding_box": [
@@ -815,7 +815,7 @@
             ]
           ],
           "text": "Life is a barren field",
-          "confidence": 0.925656
+          "confidence": 0.925609
         },
         {
           "bounding_box": [
@@ -837,7 +837,7 @@
             ]
           ],
           "text": "Frosen with snow.",
-          "confidence": 0.939544
+          "confidence": 0.939535
         },
         {
           "bounding_box": [
@@ -862,31 +862,31 @@
           "confidence": 0.919155
         }
       ],
-      "latency_ms": 2122.45,
-      "avg_latency_ms": 2122.45,
-      "min_latency_ms": 2082.05,
-      "max_latency_ms": 2196.39,
+      "latency_ms": 2121.3,
+      "avg_latency_ms": 2121.3,
+      "min_latency_ms": 2097.0,
+      "max_latency_ms": 2163.88,
       "timing": {
         "doc_ori": {
-          "preprocess_ms": 0.34,
-          "inference_ms": 9.53,
+          "preprocess_ms": 0.39,
+          "inference_ms": 9.44,
           "postprocess_ms": 0.01
         },
         "det": {
-          "preprocess_ms": 1.45,
-          "inference_ms": 1301.75,
-          "postprocess_ms": 0.87
+          "preprocess_ms": 1.48,
+          "inference_ms": 1306.96,
+          "postprocess_ms": 0.95
         },
         "textline_ori": {
-          "preprocess_ms": 0.59,
-          "inference_ms": 152.11,
+          "preprocess_ms": 0.61,
+          "inference_ms": 150.08,
           "postprocess_ms": 0.06,
           "count": 33.0
         },
         "rec": {
-          "preprocess_ms": 0.98,
-          "inference_ms": 647.66,
-          "postprocess_ms": 4.72,
+          "preprocess_ms": 1.04,
+          "inference_ms": 642.71,
+          "postprocess_ms": 4.95,
           "count": 33.0
         }
       }
@@ -958,7 +958,7 @@
             ]
           ],
           "text": "学校が終わってから、友達と遊んじゃつたの。それで、帰るのが少",
-          "confidence": 0.988677
+          "confidence": 0.988583
         },
         {
           "bounding_box": [
@@ -980,7 +980,7 @@
             ]
           ],
           "text": "し遅くなったの。遊ばなかつたら、一時間ぐらい早く帰れたかもし",
-          "confidence": 0.975582
+          "confidence": 0.975569
         },
         {
           "bounding_box": [
@@ -1068,7 +1068,7 @@
             ]
           ],
           "text": "「もしそうしていたら……」雪穂はいつたん唇を噛んでから続け",
-          "confidence": 0.984387
+          "confidence": 0.984454
         },
         {
           "bounding_box": [
@@ -1178,7 +1178,7 @@
             ]
           ],
           "text": "かめなかつた。",
-          "confidence": 0.931391
+          "confidence": 0.931195
         },
         {
           "bounding_box": [
@@ -1244,7 +1244,7 @@
             ]
           ],
           "text": "「そんなふうに考えるのはよくないよ。だって、知ってて家に帰る",
-          "confidence": 0.999337
+          "confidence": 0.999336
         },
         {
           "bounding_box": [
@@ -1288,7 +1288,7 @@
             ]
           ],
           "text": "「そういう意味じゃないの。おかあさんはね、あたしに苦労させな",
-          "confidence": 0.999301
+          "confidence": 0.999302
         },
         {
           "bounding_box": [
@@ -1511,31 +1511,31 @@
           "confidence": 0.998574
         }
       ],
-      "latency_ms": 18993.77,
-      "avg_latency_ms": 18993.77,
-      "min_latency_ms": 15047.76,
-      "max_latency_ms": 21575.59,
+      "latency_ms": 19706.38,
+      "avg_latency_ms": 19706.38,
+      "min_latency_ms": 16489.49,
+      "max_latency_ms": 25450.59,
       "timing": {
         "doc_ori": {
-          "preprocess_ms": 0.95,
-          "inference_ms": 10.22,
+          "preprocess_ms": 1.16,
+          "inference_ms": 9.79,
           "postprocess_ms": 0.01
         },
         "det": {
-          "preprocess_ms": 22.6,
-          "inference_ms": 13282.72,
-          "postprocess_ms": 49.7
+          "preprocess_ms": 18.81,
+          "inference_ms": 14197.04,
+          "postprocess_ms": 36.1
         },
         "textline_ori": {
-          "preprocess_ms": 3.79,
-          "inference_ms": 389.35,
-          "postprocess_ms": 1.06,
+          "preprocess_ms": 6.0,
+          "inference_ms": 383.72,
+          "postprocess_ms": 0.57,
           "count": 84.0
         },
         "rec": {
-          "preprocess_ms": 31.58,
-          "inference_ms": 5056.11,
-          "postprocess_ms": 125.65,
+          "preprocess_ms": 19.51,
+          "inference_ms": 4926.33,
+          "postprocess_ms": 86.92,
           "count": 84.0
         }
       }
@@ -1761,7 +1761,7 @@
             ]
           ],
           "text": "需求和供應商表現，輔助工廠產量之決策。",
-          "confidence": 0.88324
+          "confidence": 0.883313
         },
         {
           "bounding_box": [
@@ -1849,7 +1849,7 @@
             ]
           ],
           "text": "前，贸易公司是靠著資訊差異兼錢，現在網路時代所有製造商資訊都可在網",
-          "confidence": 0.906983
+          "confidence": 0.906944
         },
         {
           "bounding_box": [
@@ -1871,7 +1871,7 @@
             ]
           ],
           "text": "發展金融科技服務：利用上述即时數據，開發供應鏈金融牵品，為上下游客户提",
-          "confidence": 0.894289
+          "confidence": 0.894274
         },
         {
           "bounding_box": [
@@ -2025,7 +2025,7 @@
             ]
           ],
           "text": "線上取得聯繫方式，大幅壓縮中間商的生存空間。",
-          "confidence": 0.973679
+          "confidence": 0.973694
         },
         {
           "bounding_box": [
@@ -2377,7 +2377,7 @@
             ]
           ],
           "text": "人才發展戰略：既培養内部数位人才，也從外部引進AI、敷據分析等專業人才",
-          "confidence": 0.883186
+          "confidence": 0.883148
         },
         {
           "bounding_box": [
@@ -2399,7 +2399,7 @@
             ]
           ],
           "text": "在跨境贸易中，語言障礙一直是重要屏障，也是贸易公司傳統之競爭優勢。而",
-          "confidence": 0.927751
+          "confidence": 0.927779
         },
         {
           "bounding_box": [
@@ -2443,7 +2443,7 @@
             ]
           ],
           "text": "在ChatGPT横空出世後，具備AI翻譯之智能客服系統已可24小时處理来自全球各地",
-          "confidence": 0.93457
+          "confidence": 0.934571
         },
         {
           "bounding_box": [
@@ -2553,7 +2553,7 @@
             ]
           ],
           "text": "AI不是威脅，而是整體贸易價值重塑的新機遇。AI技術將持續重塑國際贸易格",
-          "confidence": 0.938903
+          "confidence": 0.938887
         },
         {
           "bounding_box": [
@@ -2974,31 +2974,31 @@
           "confidence": 0.912195
         }
       ],
-      "latency_ms": 18493.73,
-      "avg_latency_ms": 18493.73,
-      "min_latency_ms": 16641.86,
-      "max_latency_ms": 20586.56,
+      "latency_ms": 17947.03,
+      "avg_latency_ms": 17947.03,
+      "min_latency_ms": 16565.22,
+      "max_latency_ms": 18994.7,
       "timing": {
         "doc_ori": {
-          "preprocess_ms": 0.54,
-          "inference_ms": 10.04,
+          "preprocess_ms": 1.08,
+          "inference_ms": 9.83,
           "postprocess_ms": 0.01
         },
         "det": {
-          "preprocess_ms": 24.79,
-          "inference_ms": 6207.56,
-          "postprocess_ms": 14.89
+          "preprocess_ms": 15.44,
+          "inference_ms": 5712.83,
+          "postprocess_ms": 13.56
         },
         "textline_ori": {
-          "preprocess_ms": 6.62,
-          "inference_ms": 895.6,
-          "postprocess_ms": 0.31,
+          "preprocess_ms": 7.18,
+          "inference_ms": 886.31,
+          "postprocess_ms": 0.55,
           "count": 195.0
         },
         "rec": {
-          "preprocess_ms": 28.82,
-          "inference_ms": 11133.83,
-          "postprocess_ms": 161.89,
+          "preprocess_ms": 24.16,
+          "inference_ms": 11160.35,
+          "postprocess_ms": 98.85,
           "count": 195.0
         }
       }
@@ -3092,7 +3092,7 @@
             ]
           ],
           "text": "1內部創新路徑",
-          "confidence": 0.911767
+          "confidence": 0.911179
         },
         {
           "bounding_box": [
@@ -3312,7 +3312,7 @@
             ]
           ],
           "text": "前，贸易公司是靠著資訊差異兼錢，現在網路時代所有製造商資訊都可在網",
-          "confidence": 0.916965
+          "confidence": 0.916981
         },
         {
           "bounding_box": [
@@ -3356,7 +3356,7 @@
             ]
           ],
           "text": "上輕易找到，這行業該怎麼走下去？」這段話道出當前國際貿易產業的境況。",
-          "confidence": 0.963335
+          "confidence": 0.963193
         },
         {
           "bounding_box": [
@@ -3488,7 +3488,7 @@
             ]
           ],
           "text": "線上取得聯繫方式，大幅壓縮中間商的生存空間。",
-          "confidence": 0.973772
+          "confidence": 0.973696
         },
         {
           "bounding_box": [
@@ -3862,7 +3862,7 @@
             ]
           ],
           "text": "在跨境贸易中，語言障礙一直是重要屏障，也是贸易公司傳統之競爭優勢。而",
-          "confidence": 0.927729
+          "confidence": 0.927731
         },
         {
           "bounding_box": [
@@ -3906,7 +3906,7 @@
             ]
           ],
           "text": "在ChatGPT横空出世後，具備AI翻譯之智能客服系統已可24小时處理来自全球各地",
-          "confidence": 0.93457
+          "confidence": 0.934571
         },
         {
           "bounding_box": [
@@ -3928,7 +3928,7 @@
             ]
           ],
           "text": "·知識管理體系：建立創新知識庫，將內部創新經驗和外部優秀案例相結合，促進",
-          "confidence": 0.918742
+          "confidence": 0.918777
         },
         {
           "bounding_box": [
@@ -4016,7 +4016,7 @@
             ]
           ],
           "text": "AI不是威脅，而是整體贸易價值重塑的新機遇。AI技術將持續重塑國際贸易格",
-          "confidence": 0.943108
+          "confidence": 0.943097
         },
         {
           "bounding_box": [
@@ -4437,31 +4437,31 @@
           "confidence": 0.875302
         }
       ],
-      "latency_ms": 16923.7,
-      "avg_latency_ms": 16923.7,
-      "min_latency_ms": 16464.53,
-      "max_latency_ms": 17500.74,
+      "latency_ms": 17549.23,
+      "avg_latency_ms": 17549.23,
+      "min_latency_ms": 16871.24,
+      "max_latency_ms": 18007.09,
       "timing": {
         "doc_ori": {
-          "preprocess_ms": 0.89,
-          "inference_ms": 10.32,
-          "postprocess_ms": 3.6
+          "preprocess_ms": 2.28,
+          "inference_ms": 9.78,
+          "postprocess_ms": 4.77
         },
         "det": {
-          "preprocess_ms": 5.94,
-          "inference_ms": 4844.46,
-          "postprocess_ms": 6.17
+          "preprocess_ms": 14.78,
+          "inference_ms": 5410.27,
+          "postprocess_ms": 8.94
         },
         "textline_ori": {
-          "preprocess_ms": 3.3,
-          "inference_ms": 886.58,
-          "postprocess_ms": 0.26,
+          "preprocess_ms": 3.96,
+          "inference_ms": 886.56,
+          "postprocess_ms": 0.28,
           "count": 195.0
         },
         "rec": {
-          "preprocess_ms": 15.88,
-          "inference_ms": 11039.45,
-          "postprocess_ms": 99.08,
+          "preprocess_ms": 17.03,
+          "inference_ms": 11083.78,
+          "postprocess_ms": 100.36,
           "count": 195.0
         }
       }
@@ -4511,7 +4511,7 @@
             ]
           ],
           "text": "yuàn wén liù fǔ zhī bìng",
-          "confidence": 0.965979
+          "confidence": 0.965986
         },
         {
           "bounding_box": [
@@ -4665,7 +4665,7 @@
             ]
           ],
           "text": "答曰：面热者，足阳明病；鱼络血",
-          "confidence": 0.996129
+          "confidence": 0.996131
         },
         {
           "bounding_box": [
@@ -4731,7 +4731,7 @@
             ]
           ],
           "text": "liǎng fū zhī shàng mài shù xiàn zhě",
-          "confidence": 0.973987
+          "confidence": 0.973911
         },
         {
           "bounding_box": [
@@ -4841,7 +4841,7 @@
             ]
           ],
           "text": "dà cháng bìng zhě",
-          "confidence": 0.930223
+          "confidence": 0.930328
         },
         {
           "bounding_box": [
@@ -4863,7 +4863,7 @@
             ]
           ],
           "text": "cháng zhōng qiè tòng ér míng zhuó",
-          "confidence": 0.981316
+          "confidence": 0.98129
         },
         {
           "bounding_box": [
@@ -4885,7 +4885,7 @@
             ]
           ],
           "text": "大肠病者，肠中切痛而鸣濯",
-          "confidence": 0.9922
+          "confidence": 0.992197
         },
         {
           "bounding_box": [
@@ -5039,7 +5039,7 @@
             ]
           ],
           "text": "wèi bìng zhě",
-          "confidence": 0.957399
+          "confidence": 0.957336
         },
         {
           "bounding_box": [
@@ -5105,7 +5105,7 @@
             ]
           ],
           "text": "胃病者，腹瞋胀，胃脘当心而",
-          "confidence": 0.992508
+          "confidence": 0.992516
         },
         {
           "bounding_box": [
@@ -5281,34 +5281,34 @@
             ]
           ],
           "text": "下，取之三里也。",
-          "confidence": 0.997801
+          "confidence": 0.997793
         }
       ],
-      "latency_ms": 5088.02,
-      "avg_latency_ms": 5088.02,
-      "min_latency_ms": 5073.62,
-      "max_latency_ms": 5107.45,
+      "latency_ms": 5113.48,
+      "avg_latency_ms": 5113.48,
+      "min_latency_ms": 5074.69,
+      "max_latency_ms": 5148.99,
       "timing": {
         "doc_ori": {
-          "preprocess_ms": 0.31,
-          "inference_ms": 9.55,
+          "preprocess_ms": 0.37,
+          "inference_ms": 9.6,
           "postprocess_ms": 0.01
         },
         "det": {
-          "preprocess_ms": 1.63,
-          "inference_ms": 1440.99,
-          "postprocess_ms": 2.6
+          "preprocess_ms": 1.76,
+          "inference_ms": 1456.27,
+          "postprocess_ms": 4.61
         },
         "textline_ori": {
-          "preprocess_ms": 1.75,
-          "inference_ms": 505.86,
-          "postprocess_ms": 0.13,
+          "preprocess_ms": 2.28,
+          "inference_ms": 504.63,
+          "postprocess_ms": 0.16,
           "count": 111.0
         },
         "rec": {
-          "preprocess_ms": 4.36,
-          "inference_ms": 3089.96,
-          "postprocess_ms": 26.44,
+          "preprocess_ms": 5.28,
+          "inference_ms": 3096.85,
+          "postprocess_ms": 26.93,
           "count": 111.0
         }
       }

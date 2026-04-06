@@ -16,36 +16,36 @@
       "memory_gb": "16"
     },
     "model_type": "PP-OCRv5 Server",
-    "cpu_threads": 8,
+    "cpu_threads": 2,
     "num_runs": 3,
     "num_warmup": 1,
     "total_images": 7,
-    "total_time_ms": 49672.26,
-    "avg_latency_ms": 7096.04,
-    "fps": 0.1409,
+    "total_time_ms": 44320.49,
+    "avg_latency_ms": 6331.5,
+    "fps": 0.1579,
     "init_time_sec": 0.16
   },
   "aggregate_timing": {
     "doc_ori": {
-      "preprocess_ms": 1.02,
-      "inference_ms": 4.82,
-      "postprocess_ms": 0.98
+      "preprocess_ms": 0.92,
+      "inference_ms": 3.41,
+      "postprocess_ms": 0.6
     },
     "det": {
-      "preprocess_ms": 5.47,
-      "inference_ms": 4311.64,
-      "postprocess_ms": 5.78
+      "preprocess_ms": 6.64,
+      "inference_ms": 4246.58,
+      "postprocess_ms": 3.92
     },
     "textline_ori": {
-      "preprocess_ms": 3.68,
-      "inference_ms": 98.81,
-      "postprocess_ms": 0.29,
+      "preprocess_ms": 2.55,
+      "inference_ms": 80.84,
+      "postprocess_ms": 0.11,
       "count": 684.0
     },
     "rec": {
-      "preprocess_ms": 11.57,
-      "inference_ms": 2579.15,
-      "postprocess_ms": 64.57,
+      "preprocess_ms": 9.57,
+      "inference_ms": 1931.17,
+      "postprocess_ms": 39.61,
       "count": 684.0
     }
   },
@@ -53,20 +53,20 @@
     {
       "model": "det",
       "phase": "inference",
-      "total_ms": 30181.5,
-      "percent": 60.8
+      "total_ms": 29726.07,
+      "percent": 67.1
     },
     {
       "model": "rec",
       "phase": "inference",
-      "total_ms": 18054.02,
-      "percent": 36.4
+      "total_ms": 13518.19,
+      "percent": 30.5
     },
     {
       "model": "textline_ori",
       "phase": "inference",
-      "total_ms": 691.69,
-      "percent": 1.4
+      "total_ms": 565.86,
+      "percent": 1.3
     }
   ],
   "results": [
@@ -338,31 +338,31 @@
           "confidence": 0.949871
         }
       ],
-      "latency_ms": 1339.88,
-      "avg_latency_ms": 1339.88,
-      "min_latency_ms": 1307.62,
-      "max_latency_ms": 1390.28,
+      "latency_ms": 1021.64,
+      "avg_latency_ms": 1021.64,
+      "min_latency_ms": 1016.9,
+      "max_latency_ms": 1029.68,
       "timing": {
         "doc_ori": {
-          "preprocess_ms": 0.67,
-          "inference_ms": 2.72,
+          "preprocess_ms": 0.38,
+          "inference_ms": 2.66,
           "postprocess_ms": 0.01
         },
         "det": {
-          "preprocess_ms": 1.83,
-          "inference_ms": 396.52,
-          "postprocess_ms": 1.34
+          "preprocess_ms": 1.28,
+          "inference_ms": 369.3,
+          "postprocess_ms": 1.15
         },
         "textline_ori": {
-          "preprocess_ms": 1.72,
-          "inference_ms": 34.65,
-          "postprocess_ms": 0.1,
+          "preprocess_ms": 1.21,
+          "inference_ms": 29.03,
+          "postprocess_ms": 0.05,
           "count": 36.0
         },
         "rec": {
-          "preprocess_ms": 3.66,
-          "inference_ms": 871.1,
-          "postprocess_ms": 20.76,
+          "preprocess_ms": 2.97,
+          "inference_ms": 596.98,
+          "postprocess_ms": 13.34,
           "count": 36.0
         }
       }
@@ -591,31 +591,31 @@
           "confidence": 0.983109
         }
       ],
-      "latency_ms": 1175.45,
-      "avg_latency_ms": 1175.45,
-      "min_latency_ms": 757.22,
-      "max_latency_ms": 1916.22,
+      "latency_ms": 673.34,
+      "avg_latency_ms": 673.34,
+      "min_latency_ms": 631.77,
+      "max_latency_ms": 753.63,
       "timing": {
         "doc_ori": {
-          "preprocess_ms": 0.64,
-          "inference_ms": 5.22,
+          "preprocess_ms": 0.46,
+          "inference_ms": 2.76,
           "postprocess_ms": 0.01
         },
         "det": {
-          "preprocess_ms": 2.46,
-          "inference_ms": 811.92,
-          "postprocess_ms": 0.97
+          "preprocess_ms": 1.37,
+          "inference_ms": 436.41,
+          "postprocess_ms": 0.8
         },
         "textline_ori": {
-          "preprocess_ms": 0.97,
-          "inference_ms": 31.11,
-          "postprocess_ms": 0.1,
+          "preprocess_ms": 0.51,
+          "inference_ms": 23.97,
+          "postprocess_ms": 0.03,
           "count": 30.0
         },
         "rec": {
-          "preprocess_ms": 1.0,
-          "inference_ms": 312.02,
-          "postprocess_ms": 6.34,
+          "preprocess_ms": 0.89,
+          "inference_ms": 200.4,
+          "postprocess_ms": 4.17,
           "count": 30.0
         }
       }
@@ -866,31 +866,31 @@
           "confidence": 0.919147
         }
       ],
-      "latency_ms": 2215.06,
-      "avg_latency_ms": 2215.06,
-      "min_latency_ms": 1762.35,
-      "max_latency_ms": 2453.4,
+      "latency_ms": 828.19,
+      "avg_latency_ms": 828.19,
+      "min_latency_ms": 794.73,
+      "max_latency_ms": 894.76,
       "timing": {
         "doc_ori": {
-          "preprocess_ms": 1.44,
-          "inference_ms": 7.08,
+          "preprocess_ms": 0.49,
+          "inference_ms": 2.74,
           "postprocess_ms": 0.01
         },
         "det": {
-          "preprocess_ms": 3.5,
-          "inference_ms": 1747.44,
-          "postprocess_ms": 1.6
+          "preprocess_ms": 1.6,
+          "inference_ms": 553.72,
+          "postprocess_ms": 0.96
         },
         "textline_ori": {
-          "preprocess_ms": 1.49,
-          "inference_ms": 41.99,
-          "postprocess_ms": 0.17,
+          "preprocess_ms": 0.58,
+          "inference_ms": 26.74,
+          "postprocess_ms": 0.04,
           "count": 33.0
         },
         "rec": {
-          "preprocess_ms": 2.69,
-          "inference_ms": 394.88,
-          "postprocess_ms": 7.6,
+          "preprocess_ms": 1.3,
+          "inference_ms": 232.64,
+          "postprocess_ms": 4.82,
           "count": 33.0
         }
       }
@@ -1515,31 +1515,31 @@
           "confidence": 0.998575
         }
       ],
-      "latency_ms": 14548.68,
-      "avg_latency_ms": 14548.68,
-      "min_latency_ms": 13933.65,
-      "max_latency_ms": 15056.7,
+      "latency_ms": 18425.21,
+      "avg_latency_ms": 18425.21,
+      "min_latency_ms": 15648.52,
+      "max_latency_ms": 19991.8,
       "timing": {
         "doc_ori": {
-          "preprocess_ms": 1.08,
-          "inference_ms": 5.05,
+          "preprocess_ms": 1.25,
+          "inference_ms": 4.27,
           "postprocess_ms": 0.01
         },
         "det": {
-          "preprocess_ms": 11.69,
-          "inference_ms": 11571.76,
-          "postprocess_ms": 19.38
+          "preprocess_ms": 27.13,
+          "inference_ms": 16097.79,
+          "postprocess_ms": 7.4
         },
         "textline_ori": {
-          "preprocess_ms": 3.43,
-          "inference_ms": 86.06,
-          "postprocess_ms": 0.26,
+          "preprocess_ms": 6.19,
+          "inference_ms": 73.06,
+          "postprocess_ms": 0.16,
           "count": 84.0
         },
         "rec": {
-          "preprocess_ms": 13.7,
-          "inference_ms": 2741.54,
-          "postprocess_ms": 80.16,
+          "preprocess_ms": 11.73,
+          "inference_ms": 2140.07,
+          "postprocess_ms": 42.8,
           "count": 84.0
         }
       }
@@ -2978,31 +2978,31 @@
           "confidence": 0.912193
         }
       ],
-      "latency_ms": 16118.25,
-      "avg_latency_ms": 16118.25,
-      "min_latency_ms": 13945.87,
-      "max_latency_ms": 17346.74,
+      "latency_ms": 11600.98,
+      "avg_latency_ms": 11600.98,
+      "min_latency_ms": 8593.8,
+      "max_latency_ms": 16227.05,
       "timing": {
         "doc_ori": {
-          "preprocess_ms": 1.15,
-          "inference_ms": 4.86,
+          "preprocess_ms": 1.07,
+          "inference_ms": 3.78,
           "postprocess_ms": 0.01
         },
         "det": {
-          "preprocess_ms": 8.49,
-          "inference_ms": 9661.78,
-          "postprocess_ms": 6.63
+          "preprocess_ms": 6.01,
+          "inference_ms": 6620.19,
+          "postprocess_ms": 8.59
         },
         "textline_ori": {
-          "preprocess_ms": 9.62,
-          "inference_ms": 194.94,
-          "postprocess_ms": 0.59,
+          "preprocess_ms": 4.17,
+          "inference_ms": 156.44,
+          "postprocess_ms": 0.2,
           "count": 195.0
         },
         "rec": {
-          "preprocess_ms": 27.06,
-          "inference_ms": 6035.8,
-          "postprocess_ms": 155.66,
+          "preprocess_ms": 25.71,
+          "inference_ms": 4675.2,
+          "postprocess_ms": 92.49,
           "count": 195.0
         }
       }
@@ -4441,31 +4441,31 @@
           "confidence": 0.8753
         }
       ],
-      "latency_ms": 11599.27,
-      "avg_latency_ms": 11599.27,
-      "min_latency_ms": 10248.27,
-      "max_latency_ms": 12458.85,
+      "latency_ms": 9731.95,
+      "avg_latency_ms": 9731.95,
+      "min_latency_ms": 9649.05,
+      "max_latency_ms": 9880.79,
       "timing": {
         "doc_ori": {
-          "preprocess_ms": 1.53,
-          "inference_ms": 4.52,
-          "postprocess_ms": 6.78
+          "preprocess_ms": 2.36,
+          "inference_ms": 4.32,
+          "postprocess_ms": 4.17
         },
         "det": {
-          "preprocess_ms": 6.51,
-          "inference_ms": 5208.83,
-          "postprocess_ms": 7.41
+          "preprocess_ms": 6.58,
+          "inference_ms": 4894.88,
+          "postprocess_ms": 5.95
         },
         "textline_ori": {
-          "preprocess_ms": 5.54,
-          "inference_ms": 195.97,
-          "postprocess_ms": 0.55,
+          "preprocess_ms": 3.16,
+          "inference_ms": 157.03,
+          "postprocess_ms": 0.2,
           "count": 195.0
         },
         "rec": {
-          "preprocess_ms": 23.23,
-          "inference_ms": 5983.25,
-          "postprocess_ms": 143.87,
+          "preprocess_ms": 19.1,
+          "inference_ms": 4534.37,
+          "postprocess_ms": 93.64,
           "count": 195.0
         }
       }
@@ -5288,31 +5288,31 @@
           "confidence": 0.997785
         }
       ],
-      "latency_ms": 2675.67,
-      "avg_latency_ms": 2675.67,
-      "min_latency_ms": 2416.57,
-      "max_latency_ms": 3166.29,
+      "latency_ms": 2039.18,
+      "avg_latency_ms": 2039.18,
+      "min_latency_ms": 1837.73,
+      "max_latency_ms": 2419.88,
       "timing": {
         "doc_ori": {
-          "preprocess_ms": 0.64,
-          "inference_ms": 4.28,
+          "preprocess_ms": 0.41,
+          "inference_ms": 3.33,
           "postprocess_ms": 0.01
         },
         "det": {
-          "preprocess_ms": 3.78,
-          "inference_ms": 783.25,
-          "postprocess_ms": 3.13
+          "preprocess_ms": 2.54,
+          "inference_ms": 753.78,
+          "postprocess_ms": 2.57
         },
         "textline_ori": {
-          "preprocess_ms": 2.96,
-          "inference_ms": 106.97,
-          "postprocess_ms": 0.26,
+          "preprocess_ms": 2.01,
+          "inference_ms": 99.59,
+          "postprocess_ms": 0.12,
           "count": 111.0
         },
         "rec": {
-          "preprocess_ms": 9.68,
-          "inference_ms": 1715.43,
-          "postprocess_ms": 37.58,
+          "preprocess_ms": 5.28,
+          "inference_ms": 1138.53,
+          "postprocess_ms": 26.0,
           "count": 111.0
         }
       }
