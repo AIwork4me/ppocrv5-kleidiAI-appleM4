@@ -19,10 +19,15 @@ reproduces both the single-node throughput cliff AND the full-model regression.
   4. Variance Analysis       — run-to-run max/min ratio on det model
 
 Requirements:
-    pip install onnx onnxruntime numpy
+    pip install onnx onnxruntime numpy opencv-python-headless
 
 Usage:
-    # With det model (full reproduction):
+    # Full reproduction (det model + test images):
+    python repro_igemm_regression.py \
+        --model-path PP-OCRv5_server_det_onnx/inference.onnx \
+        --image-dir data/images
+
+    # Without images (random input, still uses det model):
     python repro_igemm_regression.py --model-path PP-OCRv5_server_det_onnx/inference.onnx
 
     # Without det model (synthetic tests only, Sections 2 & 4 skipped):
@@ -54,6 +59,51 @@ try:
     import onnxruntime as ort
 except ImportError:
     sys.exit("pip install onnxruntime")
+
+try:
+    import cv2
+    _HAS_CV2 = True
+except ImportError:
+    _HAS_CV2 = False
+
+
+# ── Det preprocessing ────────────────────────────────────────────────────────
+# Minimal port from ppocrv5_onnx.py — just enough to feed real images to det.
+
+_IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+_IMAGENET_STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+_DET_STRIDE = 32
+
+# Representative test images for low-res / high-res comparison.
+# ancient_demo.png: 480×672 → det input 480×672 (322K pixels) — 1.24.3 is FASTER
+# japan_demo.png:  1216×1600 → det input 1216×1600 (1.95M pixels) — 1.24.3 is 3x SLOWER
+_LOW_RES_IMAGE = "ancient_demo.png"
+_HIGH_RES_IMAGE = "japan_demo.png"
+
+
+def det_preprocess(img: np.ndarray) -> np.ndarray:
+    """Preprocess BGR image for det model: resize to stride-32 + ImageNet normalize.
+
+    Matches PaddleOCR's det preprocessing with limit_type='min', limit_side_len=64.
+    For images > 64px on the short side, ratio=1.0 (no scaling), just round to 32.
+    """
+    src_h, src_w = img.shape[:2]
+
+    # Round to nearest multiple of 32
+    resize_h = max(int(round(src_h / _DET_STRIDE) * _DET_STRIDE), _DET_STRIDE)
+    resize_w = max(int(round(src_w / _DET_STRIDE) * _DET_STRIDE), _DET_STRIDE)
+
+    if resize_h != src_h or resize_w != src_w:
+        img = cv2.resize(img, (resize_w, resize_h))
+
+    # ImageNet normalization: (pixel/255 - mean) / std
+    tensor = img.astype(np.float32)
+    for c in range(3):
+        alpha = (1.0 / 255.0) / _IMAGENET_STD[c]
+        beta = -_IMAGENET_MEAN[c] / _IMAGENET_STD[c]
+        tensor[:, :, c] = tensor[:, :, c] * alpha + beta
+
+    return tensor.transpose(2, 0, 1)[np.newaxis].astype(np.float32)
 
 
 # ── Model builders ───────────────────────────────────────────────────────────
@@ -129,23 +179,22 @@ def bench(
 
 def bench_det(
     model_path: str,
-    h: int, w: int,
+    tensor: np.ndarray,
     threads: int,
     warmup: int = 2,
     runs: int = 3,
 ) -> dict:
-    """Benchmark det model at a specific resolution with random input."""
+    """Benchmark det model with a prepared NCHW float32 tensor."""
     sess = _make_session(model_path, threads)
     input_name = sess.get_inputs()[0].name
-    x = np.random.randn(1, 3, h, w).astype(np.float32)
 
     for _ in range(warmup):
-        sess.run(None, {input_name: x})
+        sess.run(None, {input_name: tensor})
 
     times = []
     for _ in range(runs):
         t0 = time.perf_counter()
-        sess.run(None, {input_name: x})
+        sess.run(None, {input_name: tensor})
         times.append((time.perf_counter() - t0) * 1000)
 
     avg = sum(times) / len(times)
@@ -214,26 +263,53 @@ _DET_DOWNLOAD_MSG = """\
   Download options:
     1. PaddleOCR official (Paddle format, then convert with paddle2onnx):
        https://paddleocr.bj.bcebos.com/PP-OCRv5/chinese/PP-OCRv5_server_det_infer.tar
-    2. Pre-converted ONNX (see models/README.md):
+    2. Pre-converted ONNX + test images:
        https://github.com/AIwork4me/ppocrv5-kleidiAI-appleM4
 
-  Place at: ./PP-OCRv5_server_det_onnx/inference.onnx
-  Or specify: --model-path /path/to/inference.onnx
+  Place model at: ./PP-OCRv5_server_det_onnx/inference.onnx
+  Place images at: ./data/images/ancient_demo.png, ./data/images/japan_demo.png
+  Or specify: --model-path /path/to/inference.onnx --image-dir /path/to/images
 """
 
 
-def section_det_model(model_path: str | None, threads: int) -> dict:
+def _prepare_det_input(
+    image_dir: str | None, filename: str, fallback_h: int, fallback_w: int,
+) -> tuple[np.ndarray, str]:
+    """Load and preprocess an image, or generate random input as fallback.
+
+    Returns (NCHW tensor, source description).
+    """
+    if image_dir and _HAS_CV2:
+        path = os.path.join(image_dir, filename)
+        if os.path.isfile(path):
+            img = cv2.imread(path)
+            if img is not None:
+                tensor = det_preprocess(img)
+                h, w = tensor.shape[2], tensor.shape[3]
+                return tensor, f"{filename} ({h}×{w})"
+
+    # Fallback: random input at the expected resolution
+    tensor = np.random.randn(1, 3, fallback_h, fallback_w).astype(np.float32)
+    return tensor, f"random ({fallback_h}×{fallback_w})"
+
+
+def section_det_model(
+    model_path: str | None, image_dir: str | None, threads: int,
+) -> dict:
     """
     Section 2: Det Model Regression — the smoking gun.
 
-    Runs the real PP-OCRv5 det model at low-res and high-res with random input.
+    Runs the real PP-OCRv5 det model on two representative images:
+      - ancient_demo.png (480×672, 322K pixels) — ORT 1.24.3 is 2.4x FASTER
+      - japan_demo.png (1216×1600, 1.95M pixels) — ORT 1.24.3 is 3.0x SLOWER
+
     On healthy builds, latency scales linearly with pixel count (ratio ≈ 6.0x).
     On 1.24.x, latency scaling is super-linear (ratio > 9x) due to multi-factor
     regression: IGEMM throughput cliff + non-Conv op regression + memory pressure.
 
-    Key data from profiling:
-      ORT 1.21.1 t=2: det low-res  889ms, det high-res  5,288ms → ratio 5.9x
-      ORT 1.24.3 t=2: det low-res  369ms, det high-res 16,098ms → ratio 43.6x
+    Key data from profiling (ORT t=2):
+      ORT 1.21.1: ancient_demo  889ms, japan_demo  5,288ms → ratio 5.9x
+      ORT 1.24.3: ancient_demo  369ms, japan_demo 16,098ms → ratio 43.6x
     """
     if model_path is None or not os.path.isfile(model_path):
         return {
@@ -243,19 +319,25 @@ def section_det_model(model_path: str | None, threads: int) -> dict:
             "regression": False,
         }
 
-    # Low-res: 672×480 (322K pixels) — matches ancient_demo.png det input
-    # High-res: 1600×1216 (1.95M pixels) — matches japan_demo.png det input
-    # Both are multiples of 32 as required by the det model.
+    # Prepare inputs: real images if available, random input as fallback.
+    # ancient_demo.png → det input 480×672 (rounds to 480×672, both ÷32)
+    # japan_demo.png → det input 1216×1600 (rounds to 1216×1600, both ÷32)
+    low_tensor, low_src = _prepare_det_input(image_dir, _LOW_RES_IMAGE, 672, 480)
+    high_tensor, high_src = _prepare_det_input(image_dir, _HIGH_RES_IMAGE, 1600, 1216)
+
     configs = [
-        (672, 480, "low-res"),
-        (1600, 1216, "high-res"),
+        (low_tensor, low_src, "low-res"),
+        (high_tensor, high_src, "high-res"),
     ]
 
     results = []
-    for h, w, label in configs:
-        r = bench_det(model_path, h, w, threads=threads, warmup=2, runs=3)
+    for tensor, src, label in configs:
+        r = bench_det(model_path, tensor, threads=threads, warmup=2, runs=3)
+        h, w = tensor.shape[2], tensor.shape[3]
         pixels = h * w
-        results.append({"label": label, "h": h, "w": w, "pixels": pixels, **r})
+        results.append({
+            "label": label, "source": src, "h": h, "w": w, "pixels": pixels, **r,
+        })
 
     low = results[0]["avg_ms"]
     high = results[1]["avg_ms"]
@@ -374,7 +456,7 @@ os.rmdir(tmpdir)
 
 
 def section_variance(
-    model_path: str | None, tmpdir: str, threads: int,
+    model_path: str | None, image_dir: str | None, tmpdir: str, threads: int,
 ) -> dict:
     """
     Section 4: Variance Analysis.
@@ -382,14 +464,15 @@ def section_variance(
     ORT 1.24.x shows extreme latency variance on the det model at high-res.
     Profiling data: ORT 1.24.3 det max/min = 4.87x; ORT 1.21.1 = 1.19x.
 
-    Uses real det model if available; falls back to synthetic Conv 9×9.
+    Uses real det model + japan_demo.png if available; falls back to synthetic.
     """
     use_det = model_path is not None and os.path.isfile(model_path)
 
     if use_det:
-        # High-res det model, 10 runs
-        r = bench_det(model_path, 1600, 1216, threads=threads, warmup=2, runs=10)
-        config = "det model [1,3,1600,1216], 10 runs"
+        tensor, src = _prepare_det_input(image_dir, _HIGH_RES_IMAGE, 1600, 1216)
+        r = bench_det(model_path, tensor, threads=threads, warmup=2, runs=10)
+        h, w = tensor.shape[2], tensor.shape[3]
+        config = f"det model + {src}, 10 runs"
     else:
         # Fallback: synthetic Conv above throughput cliff
         ci, co, ks, h, w = 64, 64, 9, 544, 416
@@ -424,6 +507,11 @@ def main():
         help="Path to PP-OCRv5 det ONNX model (inference.onnx). "
              "If not provided, searches default locations.",
     )
+    parser.add_argument(
+        "--image-dir", type=str, default=None,
+        help="Directory containing test images (ancient_demo.png, japan_demo.png). "
+             "If not provided, searches default locations. Falls back to random input.",
+    )
     parser.add_argument("--threads", type=int, default=2, help="intra_op_num_threads")
     parser.add_argument("--json", action="store_true", help="JSON output to stdout")
     args = parser.parse_args()
@@ -440,6 +528,26 @@ def main():
                 model_path = candidate
                 break
 
+    # Auto-detect image directory if not specified
+    image_dir = args.image_dir
+    if image_dir is None:
+        for candidate in [
+            "data/images",
+            "../data/images",
+            "images",
+            "../images",
+        ]:
+            if os.path.isdir(candidate):
+                image_dir = candidate
+                break
+
+    has_images = (
+        image_dir is not None
+        and _HAS_CV2
+        and os.path.isfile(os.path.join(image_dir, _LOW_RES_IMAGE))
+        and os.path.isfile(os.path.join(image_dir, _HIGH_RES_IMAGE))
+    )
+
     env = {
         "ort_version": ort.__version__,
         "providers": ort.get_available_providers(),
@@ -447,6 +555,8 @@ def main():
         "platform": f"{sys.platform} / {platform.machine()}",
         "threads": args.threads,
         "det_model": model_path if model_path and os.path.isfile(model_path) else None,
+        "image_dir": image_dir if has_images else None,
+        "opencv": _HAS_CV2,
     }
     try:
         env["macos"] = platform.mac_ver()[0]
@@ -485,7 +595,7 @@ def main():
         if not args.json:
             print("Section 2: Det Model Regression (PP-OCRv5 server det)")
             print("-" * 70)
-        s2 = section_det_model(model_path, args.threads)
+        s2 = section_det_model(model_path, image_dir, args.threads)
         all_results["sections"].append(s2)
         if not args.json:
             if s2.get("skipped"):
@@ -495,7 +605,7 @@ def main():
             else:
                 for r in s2["results"]:
                     pixels_k = r["pixels"] // 1000
-                    print(f"  {r['label']:<10s} [{r['h']}×{r['w']}]:  {r['avg_ms']:>9.1f}ms  ({pixels_k}K pixels)")
+                    print(f"  {r['label']:<10s} {r['source']:<30s}  {r['avg_ms']:>9.1f}ms  ({pixels_k}K pixels)")
                 print(f"  Pixel ratio: {s2['pixel_ratio']}x  Latency ratio: {s2['latency_ratio']}x  Excess: {s2['excess_ratio']}x")
                 status = "REGRESSION" if s2["regression"] else "OK"
                 print(f"  [{status}]")
@@ -521,7 +631,7 @@ def main():
         if not args.json:
             print("Section 4: Variance Analysis")
             print("-" * 70)
-        s4 = section_variance(model_path, tmpdir, args.threads)
+        s4 = section_variance(model_path, image_dir, tmpdir, args.threads)
         all_results["sections"].append(s4)
         if not args.json:
             if not s4.get("uses_det_model") and model_path is None:
