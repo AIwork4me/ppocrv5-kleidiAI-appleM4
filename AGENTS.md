@@ -8,7 +8,7 @@
 
 **ppocrv5-kleidiAI-appleM4** — A production-ready, single-file PP-OCRv5 inference
 pipeline on ONNX Runtime, delivering 1.72x speedup over PaddleOCR native inference
-on Apple M4 with 100% text-level accuracy alignment (228/228 texts, 7 images).
+on Apple M4 (ORT 1.23.2, 8 threads) with 100% text-level accuracy alignment (228/228 texts, 7 images).
 
 ## Quick Reference
 
@@ -72,12 +72,14 @@ models/                              Git-ignored. User downloads ONNX models (~1
 results/                             Reference benchmark JSONs (Apple M4).
   paddle_3.3.0.json                  Baseline.
   ort_1.21.1.json                    Without KleidiAI.
-  ort_1.23.2.json                    With KleidiAI (recommended).
+  ort_1.23.2.json                    With KleidiAI I8MM GEMM (recommended at t=8).
+  ort_1.24.3.json                    With KleidiAI SME Conv (det regressed at t=8).
 
 docs/
   ACCURACY_ALIGNMENT.md              6-round journey from 65.6% → 100%.
   BENCHMARK_RESULTS.md               Speed/accuracy tables.
   PIPELINE_ARCHITECTURE.md           4-model pipeline details, preprocessing params.
+  SME_THREAD_SCALING.md              KleidiAI SME contention on Apple Silicon, thread tuning.
 
 scripts/download_models.py           Checks 4 ONNX model files exist and are correctly sized.
 examples/quickstart.py               Minimal 3-line usage example.
@@ -238,8 +240,16 @@ Output files in `results/` follow this structure:
 ### "Optimize inference speed"
 
 - Profile with `benchmark_unified.py`. Check `hotspots` in the output JSON.
-- `det/inference` dominates (~65%). It's large-kernel conv, NOT GEMM — KleidiAI won't help.
-- `rec/inference` is second (~32%). GEMM-dominated, benefits from KleidiAI I8MM.
+- **Thread scaling matters**: On Apple M4, KleidiAI's SME Conv kernels are 2.8x faster at
+  single-thread but barely scale beyond 2 threads (SME device contention). NEON scales ~4x
+  to 8 threads. See `docs/SME_THREAD_SCALING.md`.
+- Hotspot distribution depends on ORT version and thread count:
+  - ORT 1.23.2, t=8: `rec/inference` dominates (~72%), `det/inference` is ~24%
+  - ORT 1.24.3, t=8: `det/inference` dominates (~66%) due to SME Conv contention
+- `det/inference` is large-kernel Conv — KleidiAI's SME Conv kernels DO accelerate it
+  at t=1-2, but contention at t>=3 negates the benefit. Use `--threads 2` or
+  `--disable-kleidiai` for optimal det performance.
+- `rec/inference` benefits from KleidiAI I8MM GEMM at any thread count.
 - After ANY optimization, re-run the 228-text verification protocol.
 
 ### "Port to a new platform"
@@ -263,6 +273,13 @@ Output files in `results/` follow this structure:
   params, they should be constructor arguments, not global mutations.
 
 ## Known Issues
+
+- **KleidiAI SME Conv contention on Apple Silicon** (ORT >= 1.24): The SME Conv kernels
+  barely scale beyond 2 threads on Apple M4 (which has only 2 SME devices). At `threads=8`,
+  the det model can regress 3-4x compared to ORT 1.21.1. Workarounds: use ORT 1.23.2 at
+  `threads=8`, or use ORT >= 1.24 with `--threads 2` or `--disable-kleidiai`. See
+  [onnxruntime#27633](https://github.com/microsoft/onnxruntime/issues/27633) and
+  `docs/SME_THREAD_SCALING.md`.
 
 - `data/images/magazine_vetical.png` has a filename typo ("vetical" → "vertical").
   This is kept as-is for consistency with existing benchmark results JSONs.

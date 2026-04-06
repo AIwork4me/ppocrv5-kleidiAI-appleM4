@@ -14,6 +14,7 @@ models/**/*.onnx
 models/**/*.pdiparams
 models/**/*.pdmodel
 models/**/*.json
+models/PP-*
 !models/README.md
 !models/.gitkeep
 

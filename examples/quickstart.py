@@ -18,6 +18,8 @@ def main() -> None:
     dict_path = _REPO_ROOT / "data" / "dict" / "ppocrv5_dict.txt"
     images_dir = _REPO_ROOT / "data" / "images"
 
+    # threads=4 is a reasonable default. On Apple Silicon with ORT >= 1.24,
+    # threads=2 may be better due to SME contention. See docs/SME_THREAD_SCALING.md
     pipeline = PPOCRv5Pipeline(model_dir, dict_path=dict_path, threads=4)
 
     image_files = sorted(images_dir.glob("*.png"))

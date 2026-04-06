@@ -90,12 +90,15 @@ class InferenceBackend(ABC):
 
 
 class OrtBackend(InferenceBackend):
-    def __init__(self, threads: int = 8):
+    def __init__(self, threads: int = 8, disable_kleidiai: bool = False):
         import onnxruntime as ort
         self._ort = ort
+        self._disable_kleidiai = disable_kleidiai
         opts = ort.SessionOptions()
         opts.inter_op_num_threads = threads
         opts.intra_op_num_threads = threads
+        if disable_kleidiai:
+            opts.add_session_config_entry("mlas.disable_kleidiai", "1")
         prov = ["CPUExecutionProvider"]
         self.det_sess = ort.InferenceSession(ONNX_DET, opts, providers=prov)
         self.rec_sess = ort.InferenceSession(ONNX_REC, opts, providers=prov)
@@ -118,14 +121,24 @@ class OrtBackend(InferenceBackend):
         ver = self._ort.__version__
         parts = ver.split(".")
         major, minor = int(parts[0]), int(parts[1])
-        kleidi = major > 1 or (major == 1 and minor >= 22)
-        return {
+        kleidi_available = major > 1 or (major == 1 and minor >= 22)
+        kleidi_enabled = kleidi_available and not self._disable_kleidiai
+        has_sme_conv = major > 1 or (major == 1 and minor >= 24)
+        info: dict[str, Any] = {
             "engine": f"ONNX Runtime {ver}",
             "ort_version": ver,
-            "kleidi_ai": kleidi,
+            "kleidi_ai": kleidi_enabled,
+            "kleidi_ai_disabled_by_user": self._disable_kleidiai,
             "provider": "CPUExecutionProvider",
             "model_format": "ONNX",
         }
+        if has_sme_conv and not self._disable_kleidiai:
+            info["sme_note"] = (
+                "ORT >= 1.24 uses KleidiAI SME Conv kernels. On Apple M4 (2 SME devices), "
+                "threads > 2 may cause SME contention. Use --disable-kleidiai for NEON fallback. "
+                "See docs/SME_THREAD_SCALING.md"
+            )
+        return info
 
 
 class PaddleBackend(InferenceBackend):
@@ -427,7 +440,8 @@ def run_benchmark(args: argparse.Namespace) -> dict[str, Any]:
     init_start = time.perf_counter()
 
     if args.backend == "ort":
-        backend = OrtBackend(threads=threads)
+        backend = OrtBackend(threads=threads,
+                             disable_kleidiai=getattr(args, 'disable_kleidiai', False))
     else:
         backend = PaddleBackend(threads=threads)
 
@@ -437,7 +451,12 @@ def run_benchmark(args: argparse.Namespace) -> dict[str, Any]:
     print(f"    Init time: {init_time:.2f}s")
     print(f"    Threads: {threads}")
     if "kleidi_ai" in binfo:
-        print(f"    KleidiAI: {'enabled' if binfo['kleidi_ai'] else 'disabled'}")
+        status = "enabled" if binfo["kleidi_ai"] else "disabled"
+        if binfo.get("kleidi_ai_disabled_by_user"):
+            status += " (user-disabled via --disable-kleidiai)"
+        print(f"    KleidiAI: {status}")
+        if "sme_note" in binfo:
+            print(f"    Note: {binfo['sme_note']}")
 
     character = load_charset(str(DICT_PATH))
 
@@ -574,7 +593,12 @@ def main() -> None:
     parser.add_argument("--backend", required=True, choices=["paddle", "ort"], help="Inference backend")
     parser.add_argument("--num-runs", type=int, default=3, help="Runs per image (default: 3)")
     parser.add_argument("--num-warmup", type=int, default=1, help="Warmup runs (default: 1)")
-    parser.add_argument("--threads", type=int, default=8, help="CPU threads (default: 8)")
+    parser.add_argument("--threads", type=int, default=8,
+                        help="CPU threads (default: 8). For KleidiAI SME on Apple M4, "
+                             "threads=2 avoids SME contention. See docs/SME_THREAD_SCALING.md")
+    parser.add_argument("--disable-kleidiai", action="store_true",
+                        help="Disable KleidiAI (fall back to NEON). "
+                             "Useful for ORT >= 1.24 at threads > 2 on Apple Silicon.")
     args = parser.parse_args()
 
     if not IMAGES_DIR.exists():
