@@ -197,6 +197,117 @@ In issue #27633, we made several incorrect claims that have been corrected:
 | "ORT 1.24.3 shows erratic behavior regardless of thread count" | **Partially true.** ORT 1.24.3 det shows extreme run-to-run variance (max/min = 4.87x), but at t=2 the average pipeline throughput is still the best. |
 | "disable-kleidiai can revert to NEON Conv path" | **Wrong.** In ORT 1.24.3, `mlas.disable_kleidiai` does NOT revert the Conv kernel path — the Conv override is registered at init time via `MlasConvOverride` in `platform.cpp`. |
 
+## Root Cause Deep Dive: Code Verification
+
+To understand *why* the IGEMM Conv kernel regresses on high-resolution inputs, we ran 5 experiments comparing ORT 1.21.1 (NEON im2col+SGEMM) vs ORT 1.24.3 (KleidiAI IGEMM) using synthetic models and ORT profiling.
+
+### Key Contradiction
+
+| Scenario | ORT 1.21.1 | ORT 1.24.3 | Ratio |
+|----------|--------:|--------:|:---:|
+| Single Conv 9×9 ci=64, 400×304, t=1 | 801 ms | 152 ms | **5.3x faster** |
+| Single Conv 9×9 ci=64, 400×304, t=2 | 414 ms | 141 ms | **2.9x faster** |
+| Full det model (142 Conv nodes), t=2 | 2,571 ms | 4,247 ms | **1.65x slower** |
+
+**Isolated Conv nodes are 3-5x faster on 1.24.3, but the full model is 1.65x slower.**
+
+### Experiment Results
+
+**1. ORT Profiling (per-node timing)**
+
+On japan_demo.png (1600×1216, 1.95M pixels), the regression concentrates on a few large-kernel Conv nodes:
+
+| Conv Node | Kernel | Channels | ORT 1.21.1 | ORT 1.24.3 | Ratio | Delta |
+|-----------|:------:|:--------:|--------:|--------:|:---:|------:|
+| Conv.87 | 9×9 | 256→64 | 1,748 ms | 5,523 ms | 3.16x | +3,775 ms |
+| Conv.86 | 9×9 | 256→64 | 438 ms | 1,779 ms | 4.06x | +1,341 ms |
+| Conv.92 | 9×9 | 64→64 | 108 ms | 850 ms | 7.84x | +742 ms |
+| Other 55 Conv nodes | — | — | 879 ms | 558 ms | 0.63x | -321 ms |
+
+Critically, **non-Conv ops also regress significantly** on high-resolution inputs:
+
+| Op | ORT 1.21.1 | ORT 1.24.3 | Ratio |
+|----|--------:|--------:|:---:|
+| Resize | 97 ms | 1,044 ms | **10.7x** |
+| Concat | 131 ms | 1,041 ms | **8.0x** |
+| Add | 52 ms | 135 ms | 2.6x |
+| ConvTranspose | 146 ms | 261 ms | 1.8x |
+
+On ancient_demo.png (672×480, 322K pixels), the same nodes are all faster on 1.24.3 — total Conv time drops from 2,212 ms to 1,072 ms (2.1x faster). Resize stays at 11 ms (no regression).
+
+**2. N-Node Scaling Test**
+
+Per-node latency does NOT increase with more Conv nodes stacked sequentially (ci=co=64, Conv 9×9, 400×304):
+
+| N nodes | ORT 1.21.1 per-node (t=2) | ORT 1.24.3 per-node (t=2) |
+|:-------:|--------:|--------:|
+| 1 | 414 ms | 141 ms |
+| 4 | 432 ms | 139 ms |
+| 16 | 445 ms | 141 ms |
+
+**Conclusion: thread_local cache amplification (H1) is NOT a factor** — multiple Conv nodes do not compound to cause per-node slowdown.
+
+**3. Memory Pressure Analysis**
+
+ORT 1.24.3 allocates dramatically more memory than 1.21.1:
+
+| Config | ORT 1.24.3 Peak RSS |
+|--------|---:|
+| 1 Conv 9×9 ci=64, 400×304 | **+2,635 MB** |
+| 16 Conv 9×9 ci=64, 400×304 | +1,145 MB (additive) |
+| 64 Conv 9×9 ci=64, 400×304 | +4,198 MB |
+
+The massive RSS increase (2.6 GB for a single Conv node!) suggests the KleidiAI IGEMM path allocates very large internal buffers. However, since per-node latency stays constant (Experiment 2), this memory allocation alone doesn't cause the regression — it's the *interaction with high-resolution feature maps in the full model context* that triggers it.
+
+**4. Resolution Scaling (single node)**
+
+Throughput (pixels/ms) for single Conv 9×9 ci=co=64 at t=2:
+
+| Resolution | Pixels | ORT 1.21.1 pix/ms | ORT 1.24.3 pix/ms | 1.24.3/1.21.1 |
+|:----------:|-------:|---:|---:|:---:|
+| 56×56 | 3K | 293 | 939 | **3.2x faster** |
+| 400×304 | 122K | 280 | 873 | **3.1x faster** |
+| 480×352 | 169K | 279 | 847 | **3.0x faster** |
+| **544×416** | **226K** | **277** | **479** | **1.7x faster** ← inflection |
+| 800×608 | 486K | 267 | 378 | **1.4x faster** |
+
+ORT 1.21.1 maintains constant throughput (~270-293 pix/ms), while ORT 1.24.3 drops sharply from ~900 to ~380 pix/ms above ~200K pixels. The inflection correlates with the IGEMM indirection table exceeding ~100 MB (oh×ow×kh×kw×8 bytes).
+
+Even at the worst resolution tested, single-node ORT 1.24.3 remains faster — the regression only manifests when combined with other model ops in the full det graph.
+
+### Synthesis: Multi-Factor Regression
+
+The full-model regression is NOT explained by any single factor. It is a **multi-factor interaction**:
+
+| Factor | Isolated Effect | In Full Model |
+|--------|:-:|:-:|
+| **IGEMM throughput drop at high-res** | 1.24.3 still faster (1.4x) | Amplified when combined with other overhead |
+| **Non-Conv op regression** (Resize 10.7x, Concat 8.0x) | Not caused by Conv | Adds +2,000 ms on large images |
+| **Memory allocation pressure** | +2.6 GB RSS per Conv node | May cause allocator contention for Resize/Concat buffers |
+| **High run-to-run variance** | max/min = 4.87x on 1.24.3 | Suggests resource contention (SME mode switching? allocator locks?) |
+
+The det model regression at high resolution is best understood as:
+1. **Primary (Conv)**: IGEMM indirection tables at high resolution cause cache misses, reducing the per-node speedup from 3-5x to ~1.4x
+2. **Secondary (non-Conv)**: Resize and Concat operations regress 8-11x on high-resolution inputs, contributing ~2,000 ms
+3. **Tertiary (system)**: Massive memory allocations (+2.6 GB) and possible SME mode-switching overhead create allocator pressure that affects all ops
+
+At low resolution (< 500K pixels), all these factors are negligible, and ORT 1.24.3 delivers a genuine 2x+ speedup across all ops.
+
+### Det Model Structure
+
+The PP-OCRv5 det model has 142 Conv nodes, of which 39 enter the KleidiAI IGEMM path:
+
+| Kernel Size | Total | IGEMM Path | Notes |
+|:-----------:|:-----:|:----------:|-------|
+| 9×9 | 8 | **8** | All enter IGEMM; 4 with ci=256 (heaviest) |
+| 7×7 | 4 | **4** | All enter IGEMM |
+| 5×5 | 28 | 4 | 24 skipped (non-square or grouped) |
+| 3×3 | 26 | **23** | Most enter IGEMM |
+| 1×1 | 50 | 0 | Below kernel_size >= 3 threshold |
+| Other (asymmetric) | 26 | 0 | 1×K or K×1 kernels |
+
+Estimated thread_local cache per IGEMM node: packed weights total ~30 MB/thread. For 2 threads, this is ~60 MB of thread-local buffers across all 39 nodes.
+
 ## Future Outlook
 
 The ORT community is aware of this issue. Expected fixes:

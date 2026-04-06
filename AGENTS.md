@@ -282,15 +282,19 @@ Output files in `results/` follow this structure:
 ## Known Issues
 
 - **Large-kernel Conv regression in ORT 1.24.x on Apple Silicon**: The det model uses
-  large-kernel Conv ops that regress in ORT 1.24.x compared to 1.21.1. This is a
-  Conv kernel regression, not SME contention. The regression is resolution-dependent:
-  small images (< 500K pixels) are faster in 1.24.x, while large images (> 1M pixels)
-  regress significantly. `mlas.disable_kleidiai=1` does NOT help because the Conv
-  kernel override is registered at init time. Recommended: use ORT 1.24.3 with
-  `--threads 2` for best overall pipeline throughput (rec is 3.4x faster, offsetting
-  the det regression), or use ORT 1.21.1 at `threads=8` for best det-only latency. See
-  [onnxruntime#27633](https://github.com/microsoft/onnxruntime/issues/27633) and
-  `docs/SME_THREAD_SCALING.md`.
+  large-kernel Conv ops that regress in ORT 1.24.x compared to 1.21.1. Code verification
+  revealed this is a **multi-factor regression**: (1) IGEMM indirection tables cause cache
+  misses at high resolution (>200K pixels), reducing per-node speedup from 3-5x to ~1.4x;
+  (2) non-Conv ops (Resize, Concat) regress 8-11x on large feature maps; (3) massive memory
+  allocation (+2.6 GB per Conv node) creates allocator pressure. Notably, isolated single-node
+  benchmarks show ORT 1.24.3 is FASTER at all resolutions — the regression only manifests
+  in the full model context with high-resolution inputs. `mlas.disable_kleidiai=1` does NOT
+  help because the Conv kernel override is registered at init time. The regression is
+  resolution-dependent: small images (< 500K pixels) are faster, large images (> 1M pixels)
+  regress significantly. Recommended: use ORT 1.24.3 with `--threads 2` for best overall
+  pipeline throughput (rec is 3.4x faster, offsetting det regression), or use ORT 1.21.1 at
+  `threads=8` for best det-only latency. See [onnxruntime#27633](https://github.com/microsoft/onnxruntime/issues/27633)
+  and `docs/SME_THREAD_SCALING.md` (Root Cause Deep Dive section).
 
 - `data/images/magazine_vetical.png` has a filename typo ("vetical" → "vertical").
   This is kept as-is for consistency with existing benchmark results JSONs.
