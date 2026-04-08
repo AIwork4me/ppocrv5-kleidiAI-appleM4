@@ -141,20 +141,22 @@ The PP-OCRv5 pipeline has 4 models with different characteristics:
 | doc_ori (orientation) | 3x3, 1x1 | Dynamic QGemm | Accelerated (small model, GEMM-dominated) |
 | textline_ori (line orient.) | 3x3, 1x1 | Dynamic QGemm | Accelerated (small model, GEMM-dominated) |
 
-### Full Pipeline Comparison (7 configs, Apple M4)
+### Full Pipeline Comparison (9 configs, Apple M4)
 
 | Backend | Threads | Pipeline | det | rec | textline_ori | Notes |
 |---------|:-------:|--------:|----:|----:|----:|-------|
+| ORT 1.21.1 (NEON) | 1 | 16,909 ms | 4,876 ms | 11,704 ms | 264 ms | NEON baseline at t=1 |
 | ORT 1.21.1 (NEON) | 2 | 9,346 ms | 2,571 ms | 6,523 ms | 187 ms | NEON baseline at t=2 |
 | ORT 1.21.1 (NEON) | 8 | 6,497 ms | **1,328 ms** | 4,850 ms | 222 ms | Best det latency |
+| ORT 1.24.3 (SME2) | 1 | 8,295 ms | 5,440 ms | 2,647 ms | 123 ms | **2.04x vs ORT 1.21.1 t=1** |
 | **ORT 1.24.3 (SME2)** | **2** | **6,332 ms** | 4,247 ms | **1,931 ms** | **81 ms** | **Best overall pipeline** |
 | ORT 1.24.3 (no-kleidiai) | 2 | 6,543 ms | 4,442 ms | 1,943 ms | 80 ms | disable-kleidiai ≈ no effect |
 | ORT 1.24.3 (SME2) | 8 | 7,096 ms | 4,312 ms | 2,579 ms | 99 ms | SME contention hurts rec |
 | ORT 1.24.3 (no-kleidiai) | 8 | 6,605 ms | 3,871 ms | 2,537 ms | 97 ms | High variance on det |
-| Paddle 3.3.0 | 8 | 9,567 ms | 4,296 ms | 4,728 ms | 445 ms | Baseline |
 
 Key findings:
-- **ORT 1.24.3 at t=2 is the best overall pipeline** (6,332 ms, 1.51x vs Paddle) — rec/textline_ori SME2 acceleration (3.4x, 2.3x) outweighs det regression.
+- **ORT 1.24.3 at t=1 shows the largest KleidiAI advantage** (8,295 ms, **2.04x faster** than ORT 1.21.1 at t=1) — rec is 4.4x faster via SME2 SGEMM, and NEON can't parallelize at single thread.
+- **ORT 1.24.3 at t=2 is the best overall pipeline** (6,332 ms, 1.48x faster than ORT 1.21.1 at t=2) — rec/textline_ori SME2 acceleration (3.4x, 2.3x) outweighs det regression.
 - **Det regression is from Conv kernel change, NOT SME contention**: det at t=2 (4,247 ms) ≈ det at t=8 (4,312 ms). Compare with ORT 1.21.1 where NEON scales 1.94x from t=2 to t=8.
 - **Det regression is resolution-dependent**: small images (< 500K pixels) are actually faster on 1.24.3. Large images (> 1M pixels) regress 1.2-3.0x at same thread count.
 - **`disable-kleidiai` does NOT revert Conv path**: det latency with the flag is within noise of without it.

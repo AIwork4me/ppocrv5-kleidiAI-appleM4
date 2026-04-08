@@ -4,19 +4,30 @@ Reference benchmarks on Apple M4 (macOS ARM64).
 
 ## Speed Overview
 
-| Configuration | Avg Latency | vs Paddle | Init Time | FPS |
+| Configuration | Avg Latency | vs ORT 1.21.1 (same threads) | Init Time | FPS |
 |---|---:|:---:|---:|---:|
-| Paddle 3.3.0 (t=8) | 9,567 ms | 1.00x | 2.65s | 0.1045 |
-| ORT 1.21.1 (t=2) | 9,346 ms | 1.02x | 0.15s | 0.1070 |
-| ORT 1.21.1 (t=8, no KleidiAI) | 6,497 ms | 1.47x faster | 0.16s | 0.1539 |
-| **ORT 1.24.3 (t=2, KleidiAI SME2)** | **6,332 ms** | **1.51x faster** | **0.16s** | **0.1579** |
-| ORT 1.24.3 (t=2, KleidiAI disabled) | 6,543 ms | 1.46x faster | 0.09s | 0.1528 |
-| ORT 1.24.3 (t=8, KleidiAI SME2) | 7,096 ms | 1.35x faster | 0.16s | 0.1409 |
-| ORT 1.24.3 (t=8, KleidiAI disabled) | 7,155 ms | 1.34x faster | 0.17s | 0.1398 |
+| ORT 1.21.1 (t=1) | 16,909 ms | baseline | 0.15s | 0.0591 |
+| ORT 1.24.3 (t=1, KleidiAI SME2) | 8,295 ms | **2.04x faster** | 0.17s | 0.1206 |
+| ORT 1.21.1 (t=2) | 9,346 ms | baseline | 0.15s | 0.1070 |
+| **ORT 1.24.3 (t=2, KleidiAI SME2)** | **6,332 ms** | **1.48x faster** | **0.16s** | **0.1579** |
+| ORT 1.24.3 (t=2, KleidiAI disabled) | 6,543 ms | 1.43x faster | 0.09s | 0.1528 |
+| ORT 1.21.1 (t=8) | 6,497 ms | baseline | 0.16s | 0.1539 |
+| ORT 1.24.3 (t=8, KleidiAI SME2) | 7,096 ms | 0.92x | 0.16s | 0.1409 |
+| ORT 1.24.3 (t=8, KleidiAI disabled) | 7,155 ms | 0.91x | 0.17s | 0.1398 |
 
 ## Per-Model Timing (avg ms per image)
 
 > These values are from `aggregate_timing` in the result JSON files — the average across all 7 images. For textline_ori and rec, the count represents total text regions processed across all images and runs.
+
+### ORT 1.21.1 (t=1)
+
+| Model | Preprocess | Inference | Postprocess | Total |
+|---|---:|---:|---:|---:|
+| doc_ori | 0.44 | 6.53 | 0.45 | 7.42 |
+| det | 3.12 | 4,876.13 | 2.00 | 4,881.25 |
+| textline_ori (x684) | 1.58 | 264.21 | 0.10 | 265.89 |
+| rec (x684) | 6.64 | 11,703.89 | 39.23 | 11,749.76 |
+| **Total** | | | | **16,904.32** |
 
 ### ORT 1.21.1 (t=2)
 
@@ -37,6 +48,16 @@ Reference benchmarks on Apple M4 (macOS ARM64).
 | textline_ori (x684) | 2.83 | 222.09 | 0.27 | 225.19 |
 | rec (x684) | 9.53 | 4,850.45 | 59.79 | 4,919.77 |
 | **Total** | | | | **6,489.02** |
+
+### ORT 1.24.3 (t=1, KleidiAI SME2)
+
+| Model | Preprocess | Inference | Postprocess | Total |
+|---|---:|---:|---:|---:|
+| doc_ori | 0.83 | 6.68 | 0.59 | 8.10 |
+| det | 5.98 | 5,440.39 | 6.22 | 5,452.59 |
+| textline_ori (x684) | 3.81 | 123.32 | 0.16 | 127.29 |
+| rec (x684) | 11.03 | 2,647.07 | 43.33 | 2,701.43 |
+| **Total** | | | | **8,289.41** |
 
 ### ORT 1.24.3 (t=2, KleidiAI SME2)
 
@@ -60,16 +81,16 @@ Reference benchmarks on Apple M4 (macOS ARM64).
 
 ## KleidiAI Acceleration by Model (ORT 1.21.1 → 1.24.3)
 
-| Model | ORT 1.21.1 (t=8) | ORT 1.24.3 (t=2) | ORT 1.24.3 (t=8) | Notes |
-|---|---:|---:|---:|---|
-| doc_ori | 6.63 ms | 3.41 ms (1.94x) | 4.82 ms (1.38x) | SME2 SGEMM |
-| det | 1,328.30 ms | 4,246.58 ms (0.31x) | 4,311.64 ms (0.31x) | Conv kernel regression (large spatial inputs) |
-| textline_ori | 222.09 ms | 80.84 ms (2.75x) | 98.81 ms (2.25x) | SME2 SGEMM + Conv |
-| rec | 4,850.45 ms | 1,931.17 ms (2.51x) | 2,579.15 ms (1.88x) | SME2 SGEMM + Conv |
+| Model | ORT 1.21.1 (t=1) | ORT 1.24.3 (t=1) | Speedup (t=1) | ORT 1.21.1 (t=8) | ORT 1.24.3 (t=2) | Speedup (best) |
+|---|---:|---:|:---:|---:|---:|:---:|
+| doc_ori | 6.53 ms | 6.68 ms | 0.98x | 6.63 ms | 3.41 ms | 1.94x |
+| det | 4,876.13 ms | 5,440.39 ms | 0.90x | 1,328.30 ms | 4,246.58 ms | 0.31x (regression) |
+| textline_ori | 264.21 ms | 123.32 ms | **2.14x** | 222.09 ms | 80.84 ms | **2.75x** |
+| rec | 11,703.89 ms | 2,647.07 ms | **4.42x** | 4,850.45 ms | 1,931.17 ms | **2.51x** |
 
 The det regression is resolution-dependent: images below ~500K pixels are actually faster on ORT 1.24.3. The regression only appears on high-resolution inputs (> ~1M pixels) and is NOT caused by SME contention.
 
-**Key insight**: KleidiAI SME2 dramatically accelerates GEMM-heavy models (rec 2.5x, textline_ori 2.7x) but the Conv-heavy det model regresses due to a large-kernel Conv kernel regression in ORT 1.24.x affecting high-resolution inputs. The net effect is positive at t=2 (pipeline 1.51x vs Paddle) because rec dominates total latency.
+**Key insight**: KleidiAI SME2 dramatically accelerates GEMM-heavy models (rec **4.4x at t=1**, textline_ori **2.1x at t=1**) but the Conv-heavy det model regresses due to a large-kernel Conv kernel regression in ORT 1.24.x affecting high-resolution inputs. The net effect is strongly positive: **2.04x pipeline speedup at t=1** and **1.48x at t=2** because rec dominates total latency.
 
 ## Per-Image Det Analysis
 
@@ -100,15 +121,15 @@ KleidiAI introduces **zero accuracy loss**.
 
 ## Per-Image Speed (ms)
 
-| Image | Texts | Paddle (t=8) | ORT 1.21.1 (t=8) | ORT 1.24.3 (t=2) | ORT 1.24.3 (t=8) |
+| Image | Texts | ORT 1.21.1 (t=1) | ORT 1.21.1 (t=8) | ORT 1.24.3 (t=1) | ORT 1.24.3 (t=2) |
 |---|:---:|---:|---:|---:|---:|
-| ancient_demo.png | 12 | 2,707 | 2,246 | 1,022 | 1,340 |
-| handwrite_ch_demo.png | 10 | 1,824 | 1,144 | 673 | 1,175 |
-| handwrite_en_demo.png | 11 | 2,121 | 1,429 | 828 | 2,215 |
-| japan_demo.png | 28 | 19,706 | 7,971 | 18,425 | 14,549 |
-| magazine.png | 65 | 17,947 | 14,025 | 11,601 | 16,118 |
-| magazine_vetical.png | 65 | 17,549 | 14,341 | 9,732 | 11,599 |
-| pinyin_demo.png | 37 | 5,113 | 4,323 | 2,039 | 2,676 |
+| ancient_demo.png | 12 | 5,882 | 2,246 | 1,391 | 1,022 |
+| handwrite_ch_demo.png | 10 | 3,125 | 1,144 | 1,096 | 673 |
+| handwrite_en_demo.png | 11 | 3,907 | 1,429 | 2,296 | 828 |
+| japan_demo.png | 28 | 22,953 | 7,971 | 19,560 | 18,425 |
+| magazine.png | 65 | 36,143 | 14,025 | 15,990 | 11,601 |
+| magazine_vetical.png | 65 | 36,115 | 14,341 | 14,984 | 9,732 |
+| pinyin_demo.png | 37 | 10,235 | 4,323 | 2,749 | 2,039 |
 
 ## Test Environment
 
@@ -125,6 +146,9 @@ KleidiAI introduces **zero accuracy loss**.
 pip install onnxruntime==1.24.3
 python benchmarks/benchmark_unified.py --backend ort --num-runs 3 --threads 2
 
+# ORT 1.24.3, threads=1 (maximum KleidiAI advantage)
+python benchmarks/benchmark_unified.py --backend ort --num-runs 3 --threads 1
+
 # ORT 1.24.3, threads=8
 python benchmarks/benchmark_unified.py --backend ort --num-runs 3 --threads 8
 
@@ -133,9 +157,11 @@ python benchmarks/benchmark_unified.py --backend ort --num-runs 3 --threads 8 --
 
 # ORT 1.21.1 (NEON baseline)
 pip install onnxruntime==1.21.1
+python benchmarks/benchmark_unified.py --backend ort --num-runs 3 --threads 1
+python benchmarks/benchmark_unified.py --backend ort --num-runs 3 --threads 2
 python benchmarks/benchmark_unified.py --backend ort --num-runs 3 --threads 8
 
-# Paddle (optional)
+# Paddle (for accuracy verification only — not for speed comparison)
 pip install paddlepaddle==3.3.0
 python benchmarks/benchmark_unified.py --backend paddle --num-runs 3
 ```

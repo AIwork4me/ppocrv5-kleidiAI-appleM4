@@ -38,31 +38,50 @@ def discover_results() -> list[tuple[str, dict]]:
 
 
 def compare_speed(results: list[tuple[str, dict]]) -> None:
-    """Compare inference speed across backends."""
+    """Compare inference speed across ORT configurations."""
     print("\n" + "=" * 85)
-    print("Speed Comparison")
+    print("Speed Comparison (ORT version comparison)")
     print("=" * 85)
 
     header = f"  {'Backend':<28} {'Avg (ms)':>10} {'FPS':>10} {'Init (s)':>10}"
     print(f"\n{header}")
     print("  " + "-" * 60)
 
-    latencies = []
+    ort_results = []
     for label, data in results:
         metadata = data.get("metadata", {})
         avg = metadata.get("avg_latency_ms", 0)
         fps = metadata.get("fps", 0)
         init = metadata.get("init_time_sec", 0)
-        latencies.append((label, avg))
         print(f"  {label:<28} {avg:>10.2f} {fps:>10.4f} {init:>10.2f}")
+        if label.startswith("ort_"):
+            ort_results.append((label, avg))
 
-    if len(latencies) >= 2:
-        latencies.sort(key=lambda x: x[1])
-        fastest = latencies[0]
-        print(f"\n  Fastest: {fastest[0]} ({fastest[1]:.2f} ms)")
-        for label, avg in latencies[1:]:
-            ratio = avg / fastest[1] if fastest[1] > 0 else 0
-            print(f"    vs {label}: {ratio:.2f}x slower")
+    # Compare ORT 1.24.3 configs against ORT 1.21.1 at same thread count
+    if len(ort_results) >= 2:
+        print("\n  ORT version comparison (1.24.3 vs 1.21.1, same thread count):")
+        baselines = {l: a for l, a in ort_results if l.startswith("ort_1.21")}
+        for label, avg in ort_results:
+            if not label.startswith("ort_1.24"):
+                continue
+            # Find matching 1.21.1 baseline by thread count
+            thread_suffix = ""
+            if "_t1" in label:
+                thread_suffix = "_t1"
+            elif "_t2" in label:
+                thread_suffix = "_t2"
+            # t=8 has no suffix in ort_1.21.1.json
+            baseline_key = None
+            for bk in baselines:
+                if thread_suffix and thread_suffix in bk:
+                    baseline_key = bk
+                    break
+                if not thread_suffix and "_t" not in bk:
+                    baseline_key = bk
+                    break
+            if baseline_key:
+                ratio = baselines[baseline_key] / avg if avg > 0 else 0
+                print(f"    {label}: {ratio:.2f}x vs {baseline_key}")
 
 
 def compare_per_model_timing(results: list[tuple[str, dict]]) -> None:

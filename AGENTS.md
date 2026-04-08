@@ -7,8 +7,8 @@
 ## Identity
 
 **ppocrv5-kleidiAI-appleM4** — A production-ready, single-file PP-OCRv5 inference
-pipeline on ONNX Runtime, delivering 1.51x speedup over PaddleOCR native inference
-on Apple M4 (ORT 1.24.3, 2 threads, KleidiAI SME2) with 100% text-level accuracy alignment (228/228 texts, 7 images).
+pipeline on ONNX Runtime, featuring up to 2.0x pipeline speedup via KleidiAI SME2
+(ORT 1.21.1 → 1.24.3 on Apple M4) with 100% text-level accuracy alignment with PaddleOCR (228/228 texts, 7 images).
 
 ## Quick Reference
 
@@ -69,14 +69,16 @@ models/                              Git-ignored. User downloads ONNX models (~1
   README.md                          Download instructions (Baidu Pan).
   .gitkeep                           Placeholder.
 
-results/                             Reference benchmark JSONs (Apple M4).
-  paddle_3.3.0.json                  Baseline.
+results/                             ORT version comparison data (Apple M4).
+  paddle_3.3.0.json                  For accuracy verification only.
+  ort_1.21.1_t1.json                 Without KleidiAI (NEON only, t=1).
+  ort_1.21.1_t2.json                 Without KleidiAI (NEON only, t=2).
   ort_1.21.1.json                    Without KleidiAI (NEON only, t=8).
-  ort_1.24.3.json                    With KleidiAI SME2 (t=8).
+  ort_1.24.3_t1.json                 With KleidiAI SME2 (t=1).
   ort_1.24.3_t2.json                 With KleidiAI SME2 (t=2, recommended).
+  ort_1.24.3.json                    With KleidiAI SME2 (t=8).
   ort_1.24.3_no_kleidiai.json        KleidiAI disabled (NEON fallback, t=8).
-  ort_1.21.1_t2.json                   Without KleidiAI (NEON only, t=2).
-  ort_1.24.3_t2_no_kleidiai.json       KleidiAI disabled (t=2).
+  ort_1.24.3_t2_no_kleidiai.json     KleidiAI disabled (t=2).
 
 docs/
   ACCURACY_ALIGNMENT.md              6-round journey from 65.6% → 100%.
