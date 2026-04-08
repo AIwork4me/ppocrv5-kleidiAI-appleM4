@@ -71,12 +71,12 @@ A production-ready, single-file PP-OCRv5 inference pipeline using ONNX Runtime, 
 <details>
 <summary><b>Per-model inference breakdown (ms, averaged across 7 images)</b></summary>
 
-| Model | ORT 1.21.1 (t=1) | ORT 1.21.1 (t=8) | ORT 1.24.3 (t=1) | ORT 1.24.3 (t=2) | KleidiAI Speedup (t=1) |
-|-------|-------------------:|------------------:|------------------:|------------------:|:---:|
-| doc_ori | 6.53 | 6.63 | 6.68 | **3.41** | 0.98x |
-| det | 4,876.13 | **1,328.30** | 5,440.39 | 4,246.58 | 0.90x (regression) |
-| textline_ori | 264.21 | 222.09 | 123.32 | **80.84** | **2.14x** |
-| rec | 11,703.89 | 4,850.45 | 2,647.07 | **1,931.17** | **4.42x** |
+| Model | ORT 1.21.1 (t=1) | ORT 1.21.1 (t=2) | ORT 1.21.1 (t=8) | ORT 1.24.3 (t=1) | ORT 1.24.3 (t=2) | ORT 1.24.3 (t=8) |
+|-------|-------------------:|------------------:|------------------:|------------------:|------------------:|------------------:|
+| doc_ori | 6.53 | 4.94 | 6.63 | 6.68 | **3.41** | 4.82 |
+| det | 4,876.13 | 2,571.48 | **1,328.30** | 5,440.39 | 4,246.58 | 4,311.64 |
+| textline_ori | 264.21 | 187.45 | 222.09 | 123.32 | **80.84** | 98.81 |
+| rec | 11,703.89 | 6,523.42 | 4,850.45 | 2,647.07 | **1,931.17** | 2,579.15 |
 
 Key insight: KleidiAI SME2 delivers massive acceleration on rec (4.4x at t=1) and textline_ori (2.1x at t=1). The det model regresses at high resolution, but rec dominates total pipeline time, so the net effect is a **2.04x pipeline speedup at t=1** and **1.48x at t=2**.
 
@@ -85,15 +85,15 @@ Key insight: KleidiAI SME2 delivers massive acceleration on rec (4.4x at t=1) an
 <details>
 <summary><b>Per-image latency breakdown</b></summary>
 
-| Image | Texts | ORT 1.21.1 (t=1) | ORT 1.21.1 (t=8) | ORT 1.24.3 (t=1) | ORT 1.24.3 (t=2) |
-|-------|:-----:|------------------:|------------------:|------------------:|------------------:|
-| ancient_demo.png | 12 | 5,882 ms | 2,246 ms | 1,391 ms | **1,022 ms** |
-| handwrite_ch_demo.png | 10 | 3,125 ms | 1,144 ms | 1,096 ms | **673 ms** |
-| handwrite_en_demo.png | 11 | 3,907 ms | 1,429 ms | 2,296 ms | **828 ms** |
-| japan_demo.png | 28 | 22,953 ms | **7,971 ms** | 19,560 ms | 18,425 ms |
-| magazine.png | 65 | 36,143 ms | 14,025 ms | 15,990 ms | **11,601 ms** |
-| magazine_vetical.png | 65 | 36,115 ms | 14,341 ms | 14,984 ms | **9,732 ms** |
-| pinyin_demo.png | 37 | 10,235 ms | 4,323 ms | 2,749 ms | **2,039 ms** |
+| Image | Texts | ORT 1.21.1 (t=1) | ORT 1.21.1 (t=2) | ORT 1.21.1 (t=8) | ORT 1.24.3 (t=1) | ORT 1.24.3 (t=2) | ORT 1.24.3 (t=8) |
+|-------|:-----:|------------------:|------------------:|------------------:|------------------:|------------------:|------------------:|
+| ancient_demo.png | 12 | 5,882 ms | 3,192 ms | 2,246 ms | 1,391 ms | **1,022 ms** | 1,340 ms |
+| handwrite_ch_demo.png | 10 | 3,125 ms | 1,681 ms | 1,144 ms | 1,096 ms | **673 ms** | 1,175 ms |
+| handwrite_en_demo.png | 11 | 3,907 ms | 2,107 ms | 1,429 ms | 2,296 ms | **828 ms** | 2,215 ms |
+| japan_demo.png | 28 | 22,953 ms | 12,250 ms | **7,971 ms** | 19,560 ms | 18,425 ms | 14,549 ms |
+| magazine.png | 65 | 36,143 ms | 19,873 ms | 14,025 ms | 15,990 ms | **11,601 ms** | 16,118 ms |
+| magazine_vetical.png | 65 | 36,115 ms | 20,386 ms | 14,341 ms | 14,984 ms | **9,732 ms** | 11,599 ms |
+| pinyin_demo.png | 37 | 10,235 ms | 5,931 ms | 4,323 ms | 2,749 ms | **2,039 ms** | 2,676 ms |
 
 </details>
 
