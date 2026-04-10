@@ -2,7 +2,7 @@
 
 # ppocrv5-kleidiAI-appleM4
 
-**PP-OCRv5 on ONNX Runtime + Arm KleidiAI | 100% Accuracy Aligned with PaddleOCR | Apple M4 Benchmark | ORT Version Comparison**
+**PP-OCRv5 on ONNX Runtime + Arm KleidiAI SME2 | 100% Accuracy Aligned | Apple M4 Benchmark | ORT Version Comparison**
 
 English | [中文](README_CN.md)
 
@@ -15,11 +15,11 @@ English | [中文](README_CN.md)
 
 </div>
 
-A production-ready, single-file PP-OCRv5 inference pipeline using ONNX Runtime, featuring **up to 2.0x pipeline speedup** via KleidiAI SME2 (ORT 1.21.1 → 1.24.3 on Apple M4) with **100% text-level accuracy alignment** with PaddleOCR — verified on 228 text regions across 7 images with zero mismatch.
+A production-ready single-file PP-OCRv5 inference pipeline to add perception ability running locally and without token fee, using ONNX Runtime(ORT), speeding up via Arm KleidiAI SME2 (ORT 1.21.1 → 1.24.3 on Apple M4) **up to 2.0x pipeline speedup** with **0% accuracy loss** — verified on 228 text regions across 7 images with zero mismatch.
 
 ## Highlights
 
-- **Up to 2.0x pipeline speedup** via KleidiAI SME2 (ORT 1.21.1 → 1.24.3 at t=1 on Apple M4); rec model **4.4x faster**
+- **Up to 2.0x pipeline speedup** via Arm KleidiAI SME2 (ORT 1.21.1 → 1.24.3 at t=1 on Apple M4); rec model **4.4x faster**
 - **100% accuracy match** with PaddleOCR — 228/228 texts identical, confidence diff < 0.00002
 - **Single-file deployment** — `ppocrv5_onnx.py` (~720 lines), copy-paste into any ARM app
 - **Reproducible benchmarks** — ORT 1.21.1 vs 1.24.3 across t=1, t=2, t=8; run on your own platform in 3 commands
@@ -32,7 +32,7 @@ A production-ready, single-file PP-OCRv5 inference pipeline using ONNX Runtime, 
 <table>
 <tr>
 <th>Threads</th>
-<th>ORT 1.21.1 (NEON)</th>
+<th>ORT 1.21.1 (w/o KleidiAI)</th>
 <th>ORT 1.24.3 (KleidiAI SME2)</th>
 <th>Speedup</th>
 </tr>
@@ -100,13 +100,27 @@ Key insight: KleidiAI SME2 delivers massive acceleration on rec (4.4x at t=1) an
 ## Pipeline Architecture
 
 ```
-┌─────────┐     ┌──────────┐     ┌───────┐     ┌──────────────┐     ┌───────┐
-│  Image   │────▶│ doc_ori  │────▶│  det  │────▶│ textline_ori │────▶│  rec  │────▶ Results
-│ (BGR)    │     │ 4-class  │     │  DB   │     │   2-class    │     │  CTC  │     [{text,
-└─────────┘     │ rotation │     │ boxes │     │  rotation    │     │ decode│      conf,
-                └──────────┘     └───────┘     └──────────────┘     └───────┘      bbox}]
-                  LCNet           PP-OCRv5       LCNet              PP-OCRv5
-                  224×224         HxW→stride32   160×80              48×W
+1     Enter the image
+2        │
+3        ▼
+4     ┌─────────────────────────────┐
+5     │ Text detection（PP‑OCRv5 Det）│← KleidiAI（ORT GEMM/MatMul）
+6     │ DB Post processing + NMS    │ ← KleidiCV（resize、cvtColor）
+7     └──────────────┬──────────────┘
+8                    ▼
+9     ┌──────────────────────────────┐
+10    │ Box sorting (reading order) ｜
+11 ｜ + Perspective tramsformation│ ← KleidiCV（warpPerspective） 
+12    └──────────────┬──────────────┘
+13                    ▼
+14     ┌──────────────────────────────┐
+15     │Text Recognition(PP-OCRv5 Rec)│ ← KleidiAI(ORT GEMM/MatMul)
+16     │ CTC Greedy Decode           │ ← KleidiCV（resize）
+17     └──────────────┬──────────────┘
+18                    ▼
+19                Output OCR text results
+<img width="468" height="349" alt="image" src="https://github.com/user-attachments/assets/b5dc8fb2-5c0a-4da7-874b-3a95b4e53aac" />
+
 ```
 
 See [docs/PIPELINE_ARCHITECTURE.md](docs/PIPELINE_ARCHITECTURE.md) for preprocessing parameters and implementation details.
